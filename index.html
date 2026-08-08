@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>thype</title>
+  <meta name="description" content="the world's simplest journal — a black space, stars, and your thoughts">
+  <meta name="theme-color" content="#05030f">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="thype">
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <canvas id="stars"></canvas>
+  <canvas id="particles"></canvas>
+
+  <!-- write view -->
+  <section id="view-write" class="view">
+    <button id="btn-overview" class="orb-btn" aria-label="your thoughts" title="your thoughts">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <circle cx="6" cy="18" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="12" cy="10" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="18" cy="15" r="1.6" fill="currentColor" stroke="none"/>
+        <path d="M7 17l4-6M13 10.5l4 3.5" opacity=".5"/>
+      </svg>
+    </button>
+    <div id="editor" contenteditable="true" spellcheck="false" data-placeholder="what's on your mind…"></div>
+    <button id="btn-save" class="save-pill" hidden>save</button>
+  </section>
+
+  <!-- timeline view -->
+  <section id="view-timeline" class="view" hidden>
+    <header class="bar">
+      <button id="btn-write" class="orb-btn" aria-label="new thought" title="new thought">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+      </button>
+      <h1 id="timeline-title">thoughts</h1>
+      <button id="btn-themes" class="orb-btn" aria-label="themes" title="themes">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+          <path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6z"/>
+        </svg>
+      </button>
+    </header>
+    <p id="ai-status" class="ai-status" hidden></p>
+    <div id="timeline" class="timeline"></div>
+  </section>
+
+  <!-- themes view -->
+  <section id="view-themes" class="view" hidden>
+    <header class="bar">
+      <button id="btn-back" class="orb-btn" aria-label="back" title="back">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M15 5l-7 7 7 7"/>
+        </svg>
+      </button>
+      <h1>themes</h1>
+      <span class="orb-btn ghost"></span>
+    </header>
+    <div id="themes" class="themes"></div>
+  </section>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

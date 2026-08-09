@@ -120,7 +120,7 @@ canvas#particles { z-index: 40; }
   cursor: pointer;
   transition: color .3s;
 }
-.orb-btn svg { width: 36px; height: 36px; }
+.orb-btn svg { width: 18px; height: 18px; }
 .orb-btn:active { color: var(--ink); }
 .orb-btn.ghost { visibility: hidden; }
 .orb-btn.on { color: var(--accent); }
@@ -226,7 +226,7 @@ canvas#particles { z-index: 40; }
   border-radius: 50%;
   color: var(--dim);
   font-family: var(--serif);
-  font-size: 2.2rem;
+  font-size: 1.6rem;
   font-weight: 300;
   line-height: 1;
   cursor: pointer;

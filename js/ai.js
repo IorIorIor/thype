@@ -16,12 +16,20 @@ export function onStatus(cb) { statusCb = cb; }
 function ensureEngine() {
   if (!hasWebGPU) return Promise.reject(new Error('no webgpu'));
   if (!enginePromise) {
+    // first ever load is the real model download; later loads just lift the
+    // cached weights into GPU memory — show only a quiet shimmer for those
+    const downloaded = localStorage.getItem('thype-model-ready');
     enginePromise = import(WEBLLM_URL).then(webllm =>
       webllm.CreateMLCEngine(MODEL, {
         initProgressCallback: (p) => {
           const pct = Math.round((p.progress || 0) * 100);
-          statusCb(pct < 100 ? `✦ ai waking up… ${pct}%` : '');
+          if (pct >= 100) statusCb('');
+          else statusCb(downloaded ? '✦' : `✦ downloading ai… ${pct}%`);
         },
+      }).then(engine => {
+        localStorage.setItem('thype-model-ready', '1');
+        statusCb('');
+        return engine;
       })
     ).catch(err => {
       enginePromise = null;

@@ -165,11 +165,18 @@ if (vv) {
 }
 
 let editingEntry = null;
+const deleteBtn = $('btn-delete');
+
+function disarmDelete() {
+  deleteBtn.classList.remove('armed');
+}
 
 function startEdit(entry) {
   editingEntry = entry;
   editor.textContent = entry.text;
   saveBtn.hidden = false;
+  deleteBtn.hidden = false;
+  disarmDelete();
   go('write');
   requestAnimationFrame(() => {
     const r = document.createRange();
@@ -203,8 +210,29 @@ saveBtn.addEventListener('click', async () => {
   }
   editor.textContent = '';
   saveBtn.hidden = true;
+  deleteBtn.hidden = true;
   go('timeline');
   if (ai.hasWebGPU) enrichPending();
+});
+
+// top-right delete on the writing screen: first tap arms, second lets go
+let disarmTimer = null;
+deleteBtn.addEventListener('click', async () => {
+  if (!editingEntry) return;
+  if (!deleteBtn.classList.contains('armed')) {
+    deleteBtn.classList.add('armed');
+    clearTimeout(disarmTimer);
+    disarmTimer = setTimeout(disarmDelete, 2500);
+    return;
+  }
+  clearTimeout(disarmTimer);
+  await deleteEntry(editingEntry.id);
+  editingEntry = null;
+  editor.textContent = '';
+  saveBtn.hidden = true;
+  deleteBtn.hidden = true;
+  disarmDelete();
+  go('timeline');
 });
 
 $('btn-overview').addEventListener('click', () => {
@@ -213,6 +241,7 @@ $('btn-overview').addEventListener('click', () => {
     editor.textContent = '';
     saveBtn.hidden = true;
   }
+  deleteBtn.hidden = true;
   go('timeline');
 });
 $('btn-write').addEventListener('click', () => go('write'));
@@ -224,6 +253,7 @@ $('btn-back').addEventListener('click', () => go('timeline'));
 ai.onStatus((msg) => {
   aiStatusEl.textContent = msg;
   aiStatusEl.hidden = !msg;
+  aiStatusEl.classList.toggle('quiet', msg === '✦');
 });
 
 let enriching = false;
@@ -294,35 +324,8 @@ async function renderTimeline() {
     const t = document.createElement('time');
     t.textContent = fmtDate(entry.created);
 
-    const body = document.createElement('div');
-    body.className = 'body';
-    body.textContent = entry.text;
-
-    const edit = document.createElement('button');
-    edit.className = 'edit';
-    edit.textContent = 'edit';
-    edit.addEventListener('click', (e) => {
-      e.stopPropagation();
-      startEdit(entry);
-    });
-
-    const del = document.createElement('button');
-    del.className = 'del';
-    del.textContent = 'let it go';
-    del.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (del.dataset.armed) {
-        await deleteEntry(entry.id);
-        renderTimeline();
-      } else {
-        del.dataset.armed = '1';
-        del.textContent = 'sure?';
-        setTimeout(() => { delete del.dataset.armed; del.textContent = 'let it go'; }, 2500);
-      }
-    });
-
-    b.append(h, t, body, edit, del);
-    b.addEventListener('click', () => b.classList.toggle('open'));
+    b.append(h, t);
+    b.addEventListener('click', () => startEdit(entry));
     timelineEl.append(b);
   });
 }

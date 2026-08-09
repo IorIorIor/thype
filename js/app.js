@@ -359,7 +359,16 @@ remindBtn.addEventListener('click', async () => {
   }
 });
 
-$('btn-logout').addEventListener('click', async () => {
+$('btn-logout').addEventListener('click', () => {
+  $('logout-modal').hidden = false;
+});
+$('logout-no').addEventListener('click', () => {
+  $('logout-modal').hidden = true;
+});
+$('logout-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.hidden = true;
+});
+$('logout-yes').addEventListener('click', async () => {
   await auth.logout().catch(() => {});
   location.href = location.pathname;   // clean reload → auth screen
 });

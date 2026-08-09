@@ -132,18 +132,27 @@ editor.addEventListener('input', (e) => {
   centerCaret();
 });
 
-// try to bring up the on-screen keyboard (mobile browsers may still
-// require a first tap — anywhere on the sky works, the editor is fullscreen)
+// bring up the on-screen keyboard as eagerly as the platform allows.
+// iOS only opens it from a real tap; everywhere else focus + show() works.
 function summonKeyboard() {
-  if (!views.write.hidden) {
-    editor.focus({ preventScroll: true });
-    try { navigator.virtualKeyboard?.show(); } catch { /* not supported */ }
-  }
+  if (views.write.hidden) return;
+  editor.focus({ preventScroll: true });
+  try { navigator.virtualKeyboard?.show(); } catch { /* not supported */ }
 }
-window.addEventListener('pageshow', summonKeyboard);
+window.addEventListener('pageshow', () => {
+  summonKeyboard();
+  setTimeout(summonKeyboard, 150);   // some mobile browsers ignore focus
+  setTimeout(summonKeyboard, 450);   // before first paint / SW activation
+});
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') summonKeyboard();
 });
+// guarantee the first touch anywhere on the sky opens the keyboard,
+// inside the gesture so iOS honors it
+document.addEventListener('touchend', (e) => {
+  if (views.write.hidden || e.target.closest('button')) return;
+  summonKeyboard();
+}, { passive: true });
 
 // keep the save pill above the on-screen keyboard
 if (vv) {

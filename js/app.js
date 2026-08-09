@@ -14,6 +14,9 @@ const timelineTitle = $('timeline-title');
 
 let themeFilter = null;
 
+// entries saved before multi-themes carry a single `theme` string
+const themesOf = (e) => (Array.isArray(e.themes) && e.themes.length ? e.themes : e.theme ? [e.theme] : []);
+
 // ---------- routing ----------
 
 function show(name) {
@@ -198,7 +201,7 @@ saveBtn.addEventListener('click', async () => {
   const meta = {
     text,
     title: ai.heuristicTitle(text),
-    theme: ai.heuristicTheme(text),
+    themes: ai.heuristicThemes(text),
     aiPending: ai.hasWebGPU,
   };
   try {
@@ -321,7 +324,8 @@ async function enrichPending() {
       const entry = pending.shift();
       try {
         entry.title = await ai.generateTitle(entry.text);
-        entry.theme = await ai.generateTheme(entry.text);
+        entry.themes = await ai.generateThemes(entry.text);
+        delete entry.theme;
         entry.aiPending = false;
         await updateEntry(entry);
         if (!views.timeline.hidden) renderTimeline();
@@ -355,7 +359,7 @@ function fmtDate(ts) {
 
 async function renderTimeline() {
   const all = await getEntries();
-  const entries = themeFilter ? all.filter(e => e.theme === themeFilter) : all;
+  const entries = themeFilter ? all.filter(e => themesOf(e).includes(themeFilter)) : all;
   timelineTitle.textContent = themeFilter || 'thoughts';
   timelineEl.textContent = '';
 
@@ -392,9 +396,9 @@ async function renderThemes() {
   const entries = await getEntries();
   const groups = new Map();
   for (const e of entries) {
-    const key = e.theme || 'musings';
-    if (!groups.has(key)) groups.set(key, 0);
-    groups.set(key, groups.get(key) + 1);
+    for (const key of themesOf(e).length ? themesOf(e) : ['musings']) {
+      groups.set(key, (groups.get(key) || 0) + 1);
+    }
   }
   themesEl.textContent = '';
 

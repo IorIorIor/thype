@@ -59,23 +59,24 @@ function cleanTitle(raw) {
   return t.split(' ').slice(0, 6).join(' ');
 }
 
-function cleanTheme(raw) {
-  const m = raw.toLowerCase().match(/[\p{L}]{3,20}/u);
-  return m ? m[0] : null;
+function cleanThemes(raw) {
+  const words = raw.toLowerCase().match(/[\p{L}]{3,20}/gu) || [];
+  return [...new Set(words)].slice(0, 3);
 }
 
 export async function generateTitle(text) {
   const raw = await ask(
-    'You write short evocative titles for private journal entries. Reply with ONLY the title: 2 to 5 words, no quotes, no ending punctuation.',
+    'You label private journal entries. Reply with ONLY a label: a plain, factual summary of what the entry is about in 2 to 5 simple words. No poetry, no metaphors, no quotes, no ending punctuation.',
     text, 24);
   return cleanTitle(raw) || heuristicTitle(text);
 }
 
-export async function generateTheme(text) {
+export async function generateThemes(text) {
   const raw = await ask(
-    'Name the single main theme of this journal entry as ONE lowercase word (examples: love, work, family, anxiety, dreams, gratitude, health, change). Reply with only that one word.',
-    text, 8);
-  return cleanTheme(raw) || heuristicTheme(text);
+    'List the 1 to 3 main themes of this journal entry. Each theme is ONE lowercase word (examples: love, work, family, anxiety, dreams, gratitude, health, change). Reply with only the words, separated by commas.',
+    text, 16);
+  const themes = cleanThemes(raw);
+  return themes.length ? themes : heuristicThemes(text);
 }
 
 // ---------- heuristics (fallback + instant placeholder) ----------
@@ -95,13 +96,16 @@ export function heuristicTitle(text) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export function heuristicTheme(text) {
+export function heuristicThemes(text) {
   const freq = new Map();
   for (const w of text.toLowerCase().split(/[^\p{L}'’-]+/u)) {
     if (w.length < 4 || STOP.has(w)) continue;
     freq.set(w, (freq.get(w) || 0) + 1);
   }
-  let best = null, n = 0;
-  for (const [w, c] of freq) if (c > n) { best = w; n = c; }
-  return best || 'musings';
+  const themes = [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .filter(([, count], i) => i === 0 || count >= 2)   // extras only if they recur
+    .slice(0, 3)
+    .map(([word]) => word);
+  return themes.length ? themes : ['musings'];
 }

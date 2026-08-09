@@ -111,12 +111,14 @@ function cleanEntry(id, b) {
   if (typeof b !== 'object' || b === null) return null;
   const text = String(b.text ?? '').slice(0, 20000);
   if (!text.trim()) return null;
+  const rawThemes = Array.isArray(b.themes) ? b.themes : b.theme ? [b.theme] : [];
+  const themes = [...new Set(rawThemes.map(t => String(t).toLowerCase().trim().slice(0, 40)).filter(Boolean))].slice(0, 5);
   return {
     id,
     text,
     created: Number(b.created) || Date.now(),
     title: String(b.title ?? '').slice(0, 200),
-    theme: String(b.theme ?? '').slice(0, 120),
+    themes,
     aiPending: !!b.aiPending,
   };
 }

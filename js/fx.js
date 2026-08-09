@@ -10,6 +10,11 @@ const nebula = document.createElement('canvas');
 const fogA = document.createElement('canvas');
 const fogB = document.createElement('canvas');
 
+// the milky way's stars live on several sheets, each at its own depth,
+// so the band itself is subtly three-dimensional under parallax
+const STAR_LAYER_PAR = [0.34, 0.43, 0.53, 0.64];
+const starLayers = STAR_LAYER_PAR.map(() => document.createElement('canvas'));
+
 let W = 0, H = 0, DPR = 1;
 let stars = [];
 let motes = [];
@@ -67,15 +72,31 @@ function resize() {
     c.width = W * DPR;
     c.height = H * DPR;
   }
-  for (const c of [nebula, fogA, fogB]) {
+  for (const c of [nebula, fogA, fogB, ...starLayers]) {
     c.width = (W + PAD * 2) * DPR;
     c.height = (H + PAD * 2) * DPR;
   }
   paintNebula();
   paintFog(fogA, ['130,85,200', '170,70,150', '110,80,190']);
   paintFog(fogB, ['55,95,190', '60,140,160', '80,100,200']);
+  paintStarLayers();
   seedStars();
   seedMotes();
+}
+
+// band geometry shared by the nebula painting and the star sheets
+function bandGeometry() {
+  const NW = W + PAD * 2, NH = H + PAD * 2;
+  const diag = Math.hypot(NW, NH);
+  const ang = -Math.PI / 4.6;
+  const cos = Math.cos(ang), sin = Math.sin(ang);
+  return {
+    NW, NH, diag,
+    bandAt: (t, spread) => ({
+      x: NW * 0.5 + cos * t * diag * 0.5 + -sin * gauss() * spread,
+      y: NH * 0.42 + sin * t * diag * 0.5 + cos * gauss() * spread,
+    }),
+  };
 }
 
 // ---------- static layer: gas clouds, milky way band, dust ----------
@@ -122,29 +143,6 @@ function paintNebula() {
   cloud(n, core.x, core.y, diag * 0.14, '210,190,230', 0.08);
   cloud(n, core.x, core.y, diag * 0.06, '235,220,235', 0.09);
 
-  // thousands of faint band stars
-  for (let i = 0; i < Math.min(5200, (NW * NH) / 110); i++) {
-    const p = bandAt(gauss() * 1.1, diag * (0.035 + Math.random() * 0.06));
-    const r = Math.random() * 0.35 + 0.08;
-    const a = 0.08 + Math.random() * 0.5;
-    const tint = Math.random();
-    n.fillStyle = tint < 0.75 ? `rgba(255,255,255,${a})`
-      : tint < 0.88 ? `rgba(200,215,255,${a})`
-      : `rgba(255,225,190,${a})`;
-    n.beginPath();
-    n.arc(p.x, p.y, r, 0, Math.PI * 2);
-    n.fill();
-  }
-
-  // scattered field stars outside the band
-  for (let i = 0; i < (NW * NH) / 1300; i++) {
-    const a = 0.05 + Math.random() * 0.35;
-    n.fillStyle = `rgba(255,255,255,${a})`;
-    n.beginPath();
-    n.arc(Math.random() * NW, Math.random() * NH, Math.random() * 0.3 + 0.08, 0, Math.PI * 2);
-    n.fill();
-  }
-
   // dark dust lanes across the band
   n.globalCompositeOperation = 'source-over';
   for (let i = 0; i < 9; i++) {
@@ -155,6 +153,43 @@ function paintNebula() {
     n.fillStyle = g;
     n.fillRect(0, 0, NW, NH);
   }
+}
+
+// ---------- the milky way's stars, sheeted across four depths ----------
+
+function paintStarLayers() {
+  const { NW, NH, diag, bandAt } = bandGeometry();
+  starLayers.forEach((canvas, li) => {
+    const n = canvas.getContext('2d');
+    n.setTransform(DPR, 0, 0, DPR, 0, 0);
+    n.clearRect(0, 0, NW, NH);
+    const near = li / (starLayers.length - 1);        // 0 deepest → 1 nearest
+    const sizeLift = 0.8 + near * 0.5;
+    const alphaLift = 0.7 + near * 0.4;
+
+    // dense band stars
+    for (let i = 0; i < Math.min(4500, (NW * NH) / 75); i++) {
+      const p = bandAt(gauss() * 1.1, diag * (0.035 + Math.random() * 0.06));
+      const r = (Math.random() * 0.32 + 0.07) * sizeLift;
+      const a = (0.07 + Math.random() * 0.42) * alphaLift;
+      const tint = Math.random();
+      n.fillStyle = tint < 0.75 ? `rgba(255,255,255,${a})`
+        : tint < 0.88 ? `rgba(200,215,255,${a})`
+        : `rgba(255,225,190,${a})`;
+      n.beginPath();
+      n.arc(p.x, p.y, r, 0, Math.PI * 2);
+      n.fill();
+    }
+
+    // scattered field stars outside the band
+    for (let i = 0; i < (NW * NH) / 1400; i++) {
+      const a = (0.05 + Math.random() * 0.3) * alphaLift;
+      n.fillStyle = `rgba(255,255,255,${a})`;
+      n.beginPath();
+      n.arc(Math.random() * NW, Math.random() * NH, (Math.random() * 0.28 + 0.07) * sizeLift, 0, Math.PI * 2);
+      n.fill();
+    }
+  });
 }
 
 // ---------- living nebula: two fog layers that drift, swell and breathe ----------
@@ -413,14 +448,17 @@ function frame(now) {
 
   sctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   sctx.clearRect(0, 0, W, H);
-  sctx.drawImage(nebula, -PAD + ox * 0.3, -PAD + oy * 0.3, W + PAD * 2, H + PAD * 2);
+  sctx.drawImage(nebula, -PAD + ox * 0.26, -PAD + oy * 0.26, W + PAD * 2, H + PAD * 2);
   if (typingGlow > 0.01) {
     sctx.save();
     sctx.globalCompositeOperation = 'lighter';
     sctx.globalAlpha = typingGlow * 0.12;
-    sctx.drawImage(nebula, -PAD + ox * 0.3, -PAD + oy * 0.3, W + PAD * 2, H + PAD * 2);
+    sctx.drawImage(nebula, -PAD + ox * 0.26, -PAD + oy * 0.26, W + PAD * 2, H + PAD * 2);
     sctx.restore();
   }
+  starLayers.forEach((c, i) => {
+    sctx.drawImage(c, -PAD + ox * STAR_LAYER_PAR[i], -PAD + oy * STAR_LAYER_PAR[i], W + PAD * 2, H + PAD * 2);
+  });
   drawFog(ox, oy);
 
   const twinkleLift = 1 + typingGlow * 0.16;

@@ -6,23 +6,45 @@ const crypto = require('crypto');
 
 const ROOT = __dirname;
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
+// prefer an explicit DATA_DIR; else a mounted volume at /data; else ./data
+// (which does NOT survive redeploys on Railway — attach a volume!)
+const DATA_DIR = process.env.DATA_DIR || (fs.existsSync('/data') ? '/data' : path.join(ROOT, 'data'));
 const DB_PATH = path.join(DATA_DIR, 'db.json');
 const SESSION_DAYS = 180;
 
 // ---------- storage: one JSON file, written atomically ----------
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
+let dbLoaded = false;
+let writable = true;
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch { /* checked below */ }
 let db = { users: {}, sessions: {}, entries: {} };
-try { db = { ...db, ...JSON.parse(fs.readFileSync(DB_PATH, 'utf8')) }; } catch { /* fresh start */ }
+try {
+  db = { ...db, ...JSON.parse(fs.readFileSync(DB_PATH, 'utf8')) };
+  dbLoaded = true;
+} catch { /* fresh start */ }
+try {
+  fs.writeFileSync(path.join(DATA_DIR, '.write-test'), 'ok');
+  fs.unlinkSync(path.join(DATA_DIR, '.write-test'));
+} catch (err) {
+  writable = false;
+  console.error(`thype: DATA DIR NOT WRITABLE (${DATA_DIR}) — accounts and thoughts WILL BE LOST on redeploy:`, err.message);
+}
+console.log(`thype db: ${DB_PATH} — ${dbLoaded ? `loaded, ${Object.keys(db.users).length} user(s)` : 'starting fresh'}${writable ? '' : ' (NOT WRITABLE)'}`);
 
 let saveTimer = null;
+let persistFailed = false;
 function persist() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     const tmp = DB_PATH + '.tmp';
     fs.writeFile(tmp, JSON.stringify(db), (err) => {
-      if (!err) fs.rename(tmp, DB_PATH, () => {});
+      if (err) {
+        if (!persistFailed) console.error('thype: FAILED to persist db — data is in memory only:', err.message);
+        persistFailed = true;
+        return;
+      }
+      persistFailed = false;
+      fs.rename(tmp, DB_PATH, () => {});
     });
   }, 150);
 }
@@ -190,6 +212,18 @@ async function handleApi(req, res, url) {
     try {
       if (new URL(req.headers.origin).host !== req.headers.host) return json(res, 403, { error: 'forbidden' });
     } catch { return json(res, 403, { error: 'forbidden' }); }
+  }
+
+  // public: verify storage is actually durable (volume attached & writable)
+  if (route === '/health' && method === 'GET') {
+    return json(res, 200, {
+      ok: writable && !persistFailed,
+      dataDir: DATA_DIR,
+      writable,
+      persistFailed,
+      usingVolume: DATA_DIR !== path.join(ROOT, 'data'),
+      users: Object.keys(db.users).length,
+    });
   }
 
   if (method === 'POST' && (route === '/register' || route === '/login')) {

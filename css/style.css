@@ -128,6 +128,12 @@ canvas#particles { z-index: 40; }
 }
 .orb-btn:active { color: var(--ink); box-shadow: 0 0 18px rgba(185, 165, 255, .25); }
 .orb-btn.ghost { visibility: hidden; }
+.orb-btn.on {
+  color: var(--accent);
+  border-color: rgba(185, 165, 255, .4);
+  box-shadow: 0 0 18px rgba(185, 165, 255, .22);
+}
+.bar-right { display: flex; gap: 10px; }
 
 #view-write .orb-btn {
   position: fixed;

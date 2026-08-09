@@ -10,6 +10,42 @@ let W = 0, H = 0, DPR = 1;
 let stars = [];
 const particles = [];
 
+// parallax: the nebula sits deepest, stars at varying depths, meteors nearest.
+// painted with PAD of bleed on every side so tilting never shows an edge.
+const PAD = 90;
+
+let ptx = 0, pty = 0;    // target offset (from tilt or mouse)
+let px = 0, py = 0;      // smoothed offset
+let gyroSeen = false;
+let baseBeta = null, baseGamma = null;
+
+window.addEventListener('deviceorientation', (e) => {
+  if (e.beta == null || e.gamma == null) return;
+  gyroSeen = true;
+  if (baseBeta === null) { baseBeta = e.beta; baseGamma = e.gamma; }
+  baseBeta += (e.beta - baseBeta) * 0.002;     // drift toward the new resting
+  baseGamma += (e.gamma - baseGamma) * 0.002;  // posture so it re-centers
+  const clamp = (v) => Math.max(-1, Math.min(1, v));
+  ptx = clamp((e.gamma - baseGamma) / 28) * PAD * 0.55;
+  pty = clamp((e.beta - baseBeta) / 28) * PAD * 0.55;
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (gyroSeen) return;
+  ptx = (e.clientX / W - 0.5) * PAD * 0.45;
+  pty = (e.clientY / H - 0.5) * PAD * 0.45;
+});
+
+// iOS gates motion sensors behind a permission that must be requested
+// inside a user gesture; everywhere else this is a silent no-op
+export async function enableMotion() {
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+      await DeviceOrientationEvent.requestPermission();
+    }
+  } catch { /* declined — the sky stays still */ }
+}
+
 // gaussian-ish random in [-1, 1]
 const gauss = () => (Math.random() + Math.random() + Math.random()) / 1.5 - 1;
 
@@ -17,10 +53,12 @@ function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth;
   H = window.innerHeight;
-  for (const c of [starsCanvas, partCanvas, nebula]) {
+  for (const c of [starsCanvas, partCanvas]) {
     c.width = W * DPR;
     c.height = H * DPR;
   }
+  nebula.width = (W + PAD * 2) * DPR;
+  nebula.height = (H + PAD * 2) * DPR;
   paintNebula();
   seedStars();
 }
@@ -37,26 +75,26 @@ function cloud(n, x, y, r, rgb, alpha) {
 }
 
 function paintNebula() {
+  const NW = W + PAD * 2, NH = H + PAD * 2;
   const n = nebula.getContext('2d');
   n.setTransform(DPR, 0, 0, DPR, 0, 0);
-  n.clearRect(0, 0, W, H);
-  const diag = Math.hypot(W, H);
+  n.clearRect(0, 0, NW, NH);
+  const diag = Math.hypot(NW, NH);
 
   // the milky way runs on a diagonal through the screen
   const ang = -Math.PI / 4.6;
   const cos = Math.cos(ang), sin = Math.sin(ang);
   const bandAt = (t, spread) => ({
-    x: W * 0.5 + cos * t * diag * 0.5 + -sin * gauss() * spread,
-    y: H * 0.42 + sin * t * diag * 0.5 + cos * gauss() * spread,
+    x: NW * 0.5 + cos * t * diag * 0.5 + -sin * gauss() * spread,
+    y: NH * 0.42 + sin * t * diag * 0.5 + cos * gauss() * spread,
   });
-
   n.globalCompositeOperation = 'lighter';
 
   // large ambient gas clouds
-  cloud(n, W * 0.78, H * 0.06, diag * 0.42, '96,54,150', 0.16);
-  cloud(n, W * 0.10, H * 0.95, diag * 0.38, '40,70,150', 0.15);
-  cloud(n, W * 0.30, H * 0.30, diag * 0.30, '150,60,120', 0.07);
-  cloud(n, W * 0.85, H * 0.65, diag * 0.26, '50,120,150', 0.06);
+  cloud(n, NW * 0.78, NH * 0.06, diag * 0.42, '96,54,150', 0.16);
+  cloud(n, NW * 0.10, NH * 0.95, diag * 0.38, '40,70,150', 0.15);
+  cloud(n, NW * 0.30, NH * 0.30, diag * 0.30, '150,60,120', 0.07);
+  cloud(n, NW * 0.85, NH * 0.65, diag * 0.26, '50,120,150', 0.06);
 
   // glowing puffs hugging the band
   for (let i = 0; i < 26; i++) {
@@ -70,7 +108,7 @@ function paintNebula() {
   cloud(n, core.x, core.y, diag * 0.07, '235,220,235', 0.10);
 
   // thousands of faint band stars
-  for (let i = 0; i < Math.min(2600, (W * H) / 220); i++) {
+  for (let i = 0; i < Math.min(2600, (NW * NH) / 220); i++) {
     const p = bandAt(gauss() * 1.1, diag * (0.035 + Math.random() * 0.06));
     const r = Math.random() * 0.7 + 0.15;
     const a = 0.08 + Math.random() * 0.5;
@@ -84,11 +122,11 @@ function paintNebula() {
   }
 
   // scattered field stars outside the band
-  for (let i = 0; i < (W * H) / 2600; i++) {
+  for (let i = 0; i < (NW * NH) / 2600; i++) {
     const a = 0.05 + Math.random() * 0.35;
     n.fillStyle = `rgba(255,255,255,${a})`;
     n.beginPath();
-    n.arc(Math.random() * W, Math.random() * H, Math.random() * 0.6 + 0.15, 0, Math.PI * 2);
+    n.arc(Math.random() * NW, Math.random() * NH, Math.random() * 0.6 + 0.15, 0, Math.PI * 2);
     n.fill();
   }
 
@@ -100,7 +138,7 @@ function paintNebula() {
     g.addColorStop(0, 'rgba(5,3,15,0.32)');
     g.addColorStop(1, 'rgba(5,3,15,0)');
     n.fillStyle = g;
-    n.fillRect(0, 0, W, H);
+    n.fillRect(0, 0, NW, NH);
   }
 }
 
@@ -120,14 +158,15 @@ function pickTint() {
 }
 
 function seedStars() {
-  const count = Math.round((W * H) / 3800);
+  const count = Math.round(((W + PAD * 2) * (H + PAD * 2)) / 3800);
   stars = Array.from({ length: count }, () => {
     const bright = Math.random() < 0.06;
     return {
-      x: Math.random() * W,
-      y: Math.random() * H,
+      x: -PAD + Math.random() * (W + PAD * 2),
+      y: -PAD + Math.random() * (H + PAD * 2),
       r: bright ? 1.1 + Math.random() * 1.3 : 0.25 + Math.random() * 0.85,
       bright,
+      depth: bright ? 0.8 + Math.random() * 0.5 : 0.35 + Math.random() * 0.75,
       tw: Math.random() * Math.PI * 2,
       ts: 0.4 + Math.random() * 1.6,
       vy: 0.003 + Math.random() * 0.012,
@@ -209,30 +248,41 @@ function frame(now) {
   last = now;
   t += dt;
 
+  // smoothed parallax plus a faint ambient sway so the sky always breathes
+  px += (ptx - px) * 0.055;
+  py += (pty - py) * 0.055;
+  const ox = px + Math.sin(t * 0.12) * 5;
+  const oy = py + Math.cos(t * 0.09) * 4;
+
   sctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   sctx.clearRect(0, 0, W, H);
-  sctx.drawImage(nebula, 0, 0, W, H);
+  sctx.drawImage(nebula, -PAD + ox * 0.3, -PAD + oy * 0.3, W + PAD * 2, H + PAD * 2);
 
   for (const s of stars) {
     s.y -= s.vy;
-    if (s.y < -2) { s.y = H + 2; s.x = Math.random() * W; }
+    if (s.y < -PAD) { s.y = H + PAD; s.x = -PAD + Math.random() * (W + PAD * 2); }
+    const sx = s.x + ox * s.depth;
+    const sy = s.y + oy * s.depth;
     const a = 0.22 + 0.78 * (0.5 + 0.5 * Math.sin(s.tw + t * s.ts));
     sctx.fillStyle = s.c + (a * 0.95).toFixed(3) + ')';
     sctx.beginPath();
-    sctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    sctx.arc(sx, sy, s.r, 0, Math.PI * 2);
     sctx.fill();
     if (s.bright && a > 0.55) {
       const f = s.r * (2.6 + a * 2);
       sctx.strokeStyle = s.c + (a * 0.28).toFixed(3) + ')';
       sctx.lineWidth = 0.7;
       sctx.beginPath();
-      sctx.moveTo(s.x - f, s.y); sctx.lineTo(s.x + f, s.y);
-      sctx.moveTo(s.x, s.y - f); sctx.lineTo(s.x, s.y + f);
+      sctx.moveTo(sx - f, sy); sctx.lineTo(sx + f, sy);
+      sctx.moveTo(sx, sy - f); sctx.lineTo(sx, sy + f);
       sctx.stroke();
     }
   }
 
+  sctx.save();
+  sctx.translate(ox * 1.1, oy * 1.1);   // meteors streak in the nearest layer
   updateMeteor(dt);
+  sctx.restore();
 
   pctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   pctx.clearRect(0, 0, W, H);

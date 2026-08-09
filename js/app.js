@@ -1,5 +1,5 @@
-import { addEntry, updateEntry, deleteEntry, getEntries, syncLocal, auth } from './store.js';
-import { burst } from './fx.js';
+import { addEntry, updateEntry, deleteEntry, getEntries, syncLocal, auth, push } from './store.js';
+import { burst, enableMotion } from './fx.js';
 import * as ai from './ai.js';
 
 const $ = (id) => document.getElementById(id);
@@ -25,7 +25,7 @@ function show(name) {
   if (name === 'auth') requestAnimationFrame(() => $('auth-user').focus());
   if (name === 'write') requestAnimationFrame(() => editor.focus());
   if (name === 'timeline') renderTimeline().catch(() => {});
-  if (name === 'themes') renderThemes().catch(() => {});
+  if (name === 'themes') { renderThemes().catch(() => {}); refreshRemindState(); }
 }
 
 function go(name) {
@@ -159,6 +159,8 @@ document.addEventListener('touchend', (e) => {
   if (views.write.hidden || e.target.closest('button')) return;
   summonKeyboard();
 }, { passive: true });
+// iOS only grants motion (parallax) access inside a first real gesture
+document.addEventListener('touchend', () => enableMotion(), { once: true, passive: true });
 
 // keep the save pill above the on-screen keyboard
 if (vv) {
@@ -292,6 +294,67 @@ authForm.addEventListener('submit', async (e) => {
       ? 'the stars are unreachable — no connection'
       : (err.message || "that didn't work");
     authError.hidden = false;
+  }
+});
+
+// ---------- evening reminder (daily 20:00 push if no thought yet) ----------
+
+const remindBtn = $('btn-remind');
+const remindNote = $('remind-note');
+
+function noteRemind(msg) {
+  remindNote.textContent = msg;
+  remindNote.hidden = !msg;
+  if (msg) setTimeout(() => { remindNote.hidden = true; }, 4500);
+}
+
+const pushSupported = () =>
+  'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+async function currentPushSub() {
+  if (!pushSupported()) return null;
+  const reg = await navigator.serviceWorker.ready;
+  return reg.pushManager.getSubscription();
+}
+
+async function refreshRemindState() {
+  remindBtn.classList.toggle('on', !!(await currentPushSub().catch(() => null)));
+}
+
+function b64ToUint8(b64) {
+  const raw = atob((b64 + '='.repeat((4 - b64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+
+remindBtn.addEventListener('click', async () => {
+  if (!pushSupported()) {
+    noteRemind('reminders need the app installed on your home screen');
+    return;
+  }
+  try {
+    const existing = await currentPushSub();
+    if (existing) {
+      await push.unsubscribe(existing.endpoint).catch(() => {});
+      await existing.unsubscribe();
+      remindBtn.classList.remove('on');
+      noteRemind('evening reminder off');
+      return;
+    }
+    if (await Notification.requestPermission() !== 'granted') {
+      noteRemind('notifications are blocked for thype');
+      return;
+    }
+    const { key } = await push.key();
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: b64ToUint8(key),
+    });
+    await push.subscribe(sub.toJSON(), Intl.DateTimeFormat().resolvedOptions().timeZone);
+    remindBtn.classList.add('on');
+    noteRemind('a nudge at 20:00 on quiet days');
+  } catch {
+    noteRemind("reminders didn't take — try again");
   }
 });
 

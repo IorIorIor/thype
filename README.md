@@ -29,6 +29,8 @@ Data lands in `./data/db.json` (or `$DATA_DIR/db.json`).
 3. Set the environment variable **`DATA_DIR=/data`** on the service.
 4. Redeploy. Keep the service at a single replica (the store is one JSON file).
 
+Evening reminders (a push at 20:00 local time on days without a thought) need no extra setup — VAPID keys are generated once and kept in the data volume. Optionally set `VAPID_SUBJECT=mailto:you@example.com`. Users enable reminders with the bell on the themes screen; on iPhone this requires the app installed on the home screen (iOS 16.4+).
+
 ## Stack
 
 Vanilla HTML/CSS/JS, two `<canvas>` layers (galaxy + typing particles), a dependency-free Node server with a JSON-file store, a service worker for offline shell caching, and [WebLLM](https://github.com/mlc-ai/web-llm) for on-device titles. No frameworks, no dependencies, no telemetry.

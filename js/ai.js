@@ -73,7 +73,7 @@ export async function generateTitle(text) {
 
 export async function generateThemes(text) {
   const raw = await ask(
-    'List the 1 to 3 main themes of this journal entry. Each theme is ONE lowercase word (examples: love, work, family, anxiety, dreams, gratitude, health, change). Reply with only the words, separated by commas.',
+    'List the 1 to 3 main themes of this journal entry. Each theme is ONE lowercase word (examples: love, work, family, friends, anxiety, dreams, gratitude, health, change, loss, hope, memory, nature, travel, money, creativity, loneliness, growth, food, rest, music, faith). Reply with only the words, separated by commas.',
     text, 16);
   const themes = cleanThemes(raw);
   return themes.length ? themes : heuristicThemes(text);

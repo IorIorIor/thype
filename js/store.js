@@ -25,6 +25,12 @@ async function req(method, path, body) {
   return data;
 }
 
+export const push = {
+  key: () => req('GET', '/push/key'),
+  subscribe: (subscription, tz) => req('POST', '/push/subscribe', { subscription, tz }),
+  unsubscribe: (endpoint) => req('POST', '/push/unsubscribe', { endpoint }),
+};
+
 export const auth = {
   // resolves to {username}, null (not signed in) or 'offline'
   me: async () => {

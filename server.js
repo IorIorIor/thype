@@ -35,6 +35,63 @@ for (const [token, s] of Object.entries(db.sessions)) {
   if (Date.now() - s.created > SESSION_DAYS * 86400e3) delete db.sessions[token];
 }
 
+// ---------- push reminders (daily 20:00 local, if no thought yet) ----------
+
+let webpush = null;
+try { webpush = require('web-push'); } catch { console.warn('web-push not installed — reminders disabled'); }
+
+if (webpush) {
+  db.vapid ||= webpush.generateVAPIDKeys();
+  db.push ||= {};
+  db.push.subs ||= {};          // username -> [{ subscription, tz }]
+  db.push.lastReminder ||= {};  // username -> 'YYYY-MM-DD' (local) last handled
+  persist();
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:reminders@thype.app',
+    db.vapid.publicKey, db.vapid.privateKey);
+  setInterval(() => remindTick().catch(() => {}), Number(process.env.REMIND_TICK_MS) || 60e3);
+}
+
+function localStamp(ts, tz) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit',
+    }).formatToParts(new Date(ts));
+    const get = (t) => parts.find(p => p.type === t)?.value;
+    return { date: `${get('year')}-${get('month')}-${get('day')}`, hour: +get('hour') % 24 };
+  } catch { return null; }
+}
+
+async function remindTick() {
+  const now = Date.now();
+  for (const [user, subs] of Object.entries(db.push.subs)) {
+    if (!subs?.length) continue;
+    for (const sub of subs) {
+      const loc = localStamp(now, sub.tz || 'UTC');
+      if (!loc || loc.hour !== 20) continue;
+      if (db.push.lastReminder[user] === loc.date) continue;
+      db.push.lastReminder[user] = loc.date;   // handled for today, sent or not
+      persist();
+      const wrote = Object.values(db.entries[user] || {})
+        .some(e => localStamp(e.created, sub.tz || 'UTC')?.date === loc.date);
+      if (wrote) break;
+      for (const target of [...subs]) {
+        try {
+          await webpush.sendNotification(target.subscription, JSON.stringify({
+            title: 'thype',
+            body: 'the stars are out — no thought written today',
+          }));
+        } catch (err) {
+          if (err.statusCode === 404 || err.statusCode === 410) {
+            db.push.subs[user] = db.push.subs[user].filter(x => x !== target);
+            persist();
+          }
+        }
+      }
+      break;
+    }
+  }
+}
+
 // ---------- auth helpers ----------
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
@@ -170,6 +227,28 @@ async function handleApi(req, res, url) {
   if (route === '/entries' && method === 'GET') {
     const list = Object.values(db.entries[user] || {}).sort((a, b) => b.created - a.created);
     return json(res, 200, list);
+  }
+
+  if (route === '/push/key' && method === 'GET') {
+    return webpush ? json(res, 200, { key: db.vapid.publicKey })
+      : json(res, 503, { error: 'reminders unavailable' });
+  }
+  if (route === '/push/subscribe' && method === 'POST' && webpush) {
+    const b = await readBody(req);
+    if (!b.subscription?.endpoint) return json(res, 400, { error: 'bad subscription' });
+    const tz = String(b.tz || 'UTC').slice(0, 64);
+    db.push.subs[user] = (db.push.subs[user] || [])
+      .filter(s => s.subscription.endpoint !== b.subscription.endpoint);
+    db.push.subs[user].push({ subscription: b.subscription, tz });
+    persist();
+    return json(res, 200, {});
+  }
+  if (route === '/push/unsubscribe' && method === 'POST' && webpush) {
+    const b = await readBody(req);
+    db.push.subs[user] = (db.push.subs[user] || [])
+      .filter(s => s.subscription.endpoint !== b.endpoint);
+    persist();
+    return json(res, 200, {});
   }
 
   const m = route.match(/^\/entries\/([A-Za-z0-9_-]{1,64})$/);

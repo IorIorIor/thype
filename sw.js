@@ -1,4 +1,4 @@
-const CACHE = 'thype-v6';
+const CACHE = 'thype-v7';
 const SHELL = [
   './',
   './index.html',
@@ -27,6 +27,24 @@ self.addEventListener('activate', (e) => {
 
 // same-origin: cache-first with background refresh; cross-origin (CDN, model
 // shards): network, falling back to cache — WebLLM caches model weights itself.
+self.addEventListener('push', (e) => {
+  let data = {};
+  try { data = e.data.json(); } catch { /* empty payload */ }
+  e.waitUntil(self.registration.showNotification(data.title || 'thype', {
+    body: data.body || "a quiet moment for tonight's thought",
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
+    tag: 'thype-reminder',
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list =>
+    list.length ? list[0].focus() : clients.openWindow('./')
+  ));
+});
+
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);

@@ -55,8 +55,6 @@ canvas#particles { z-index: 40; }
 .auth-title {
   font-size: 2.1rem;
   font-weight: 400;
-  letter-spacing: .5em;
-  text-indent: .5em;
   text-shadow: 0 0 30px rgba(185, 165, 255, .35);
 }
 .auth-sub {
@@ -85,19 +83,16 @@ canvas#particles { z-index: 40; }
 .auth-submit {
   margin: 16px auto 0;
   font-family: var(--serif);
-  font-size: 1rem;
-  letter-spacing: .3em;
-  text-indent: .3em;
+  font-size: 1.1rem;
   color: var(--ink);
   padding: 12px 36px;
-  border-radius: 999px;
   background: none;
-  border: 1px solid var(--glass-edge);
-  box-shadow: 0 0 26px rgba(185, 165, 255, .12);
+  border: none;
+  text-shadow: 0 0 16px rgba(185, 165, 255, .35);
   cursor: pointer;
-  transition: box-shadow .3s;
+  transition: text-shadow .3s;
 }
-.auth-submit:active { box-shadow: 0 0 40px rgba(185, 165, 255, .3); }
+.auth-submit:active { text-shadow: 0 0 26px rgba(185, 165, 255, .7); }
 .auth-toggle {
   background: none;
   border: none;
@@ -119,22 +114,15 @@ canvas#particles { z-index: 40; }
 .orb-btn {
   width: 42px; height: 42px; flex: 0 0 42px;
   display: grid; place-items: center;
-  border-radius: 50%;
   color: var(--dim);
-  background: var(--glass);
-  border: 1px solid var(--glass-edge);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: none;
+  border: none;
   cursor: pointer;
-  transition: color .3s, box-shadow .3s;
+  transition: color .3s;
 }
-.orb-btn:active { color: var(--ink); box-shadow: 0 0 18px rgba(185, 165, 255, .25); }
+.orb-btn:active { color: var(--ink); }
 .orb-btn.ghost { visibility: hidden; }
-.orb-btn.on {
-  color: var(--accent);
-  border-color: rgba(185, 165, 255, .4);
-  box-shadow: 0 0 18px rgba(185, 165, 255, .22);
-}
+.orb-btn.on { color: var(--accent); }
 .bar-right { display: flex; gap: 10px; }
 
 #view-write .orb-btn {
@@ -147,11 +135,7 @@ canvas#particles { z-index: 40; }
   left: auto;
   right: calc(env(safe-area-inset-right, 0px) + 16px);
 }
-.orb-btn.danger.armed {
-  color: rgba(255, 140, 150, .9);
-  border-color: rgba(255, 140, 150, .45);
-  box-shadow: 0 0 20px rgba(255, 140, 150, .25);
-}
+.orb-btn.danger.armed { color: rgba(255, 140, 150, .9); }
 
 #editor {
   flex: 1;
@@ -181,25 +165,20 @@ canvas#particles { z-index: 40; }
 .save-pill {
   position: fixed;
   right: calc(env(safe-area-inset-right, 0px) + 22px);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
   z-index: 20;
   font-family: var(--serif);
-  font-size: 1.05rem;
-  letter-spacing: .35em;
-  text-indent: .35em;
+  font-size: 1.15rem;
   color: var(--ink);
-  padding: 13px 34px;
-  border-radius: 999px;
-  background: var(--glass);
-  border: 1px solid var(--glass-edge);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 0 30px rgba(185, 165, 255, .14), inset 0 1px 0 rgba(255, 255, 255, .08);
+  padding: 12px;
+  background: none;
+  border: none;
+  text-shadow: 0 0 16px rgba(185, 165, 255, .4);
   cursor: pointer;
-  transition: box-shadow .3s, opacity .3s;
+  transition: text-shadow .3s, opacity .3s;
   animation: fadein .4s ease both;
 }
-.save-pill:active { box-shadow: 0 0 44px rgba(185, 165, 255, .35); }
+.save-pill:active { text-shadow: 0 0 28px rgba(185, 165, 255, .8); }
 
 /* ---------- timeline ---------- */
 
@@ -209,10 +188,8 @@ canvas#particles { z-index: 40; }
   padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px 10px;
 }
 .bar h1 {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 400;
-  letter-spacing: .45em;
-  text-indent: .45em;
   color: var(--dim);
   text-transform: lowercase;
   white-space: nowrap;
@@ -233,6 +210,25 @@ canvas#particles { z-index: 40; }
 }
 @keyframes shimmer { 0%, 100% { opacity: .25; } 50% { opacity: .85; } }
 
+.new-thought {
+  display: block;
+  margin: 2px auto 6px;
+  padding: 6px 26px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: var(--serif);
+  font-size: 2.3rem;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .3s, text-shadow .3s;
+}
+.new-thought:active {
+  color: var(--ink);
+  text-shadow: 0 0 22px rgba(185, 165, 255, .7);
+}
+
 .timeline {
   flex: 1;
   overflow-y: auto;
@@ -249,37 +245,34 @@ canvas#particles { z-index: 40; }
 
 .bubble {
   position: relative;
-  margin: 0 0 18px;
-  padding: 16px 18px;
-  border-radius: 26px;
+  margin: 0 0 26px;
+  padding: 4px 6px;
   background: none;
-  border: 1px solid var(--glass-edge);
+  border: none;
   cursor: pointer;
+  text-align: left;
   animation: fadein .5s ease both;
-  transition: box-shadow .35s;
 }
 .bubble::before {
   content: "";
   position: absolute;
-  left: -19.5px; top: 26px;
+  left: -19.5px; top: 12px;
   width: 7px; height: 7px;
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 10px rgba(185, 165, 255, .8);
 }
-.bubble:active { box-shadow: 0 0 34px rgba(185, 165, 255, .16); }
+.bubble:active h2 { text-shadow: 0 0 18px rgba(185, 165, 255, .5); }
 
 .bubble h2 {
   font-size: 1.18rem;
   font-weight: 500;
-  letter-spacing: .015em;
 }
 .bubble h2.pending { opacity: .55; font-style: italic; }
 .bubble time {
   display: block;
   margin-top: 4px;
   font-size: .74rem;
-  letter-spacing: .12em;
   color: var(--dim);
   font-style: italic;
 }
@@ -308,19 +301,16 @@ canvas#particles { z-index: 40; }
 .theme-orb {
   display: grid; place-items: center;
   text-align: center;
-  border-radius: 50%;
   padding: 10px;
   background: none;
-  border: 1px solid var(--glass-edge);
-  box-shadow: 0 0 26px rgba(185, 165, 255, .1);
+  border: none;
   color: var(--ink);
   font-family: var(--serif);
   cursor: pointer;
   animation: fadein .5s ease both, drift 7s ease-in-out infinite alternate;
-  transition: box-shadow .35s;
 }
-.theme-orb:active { box-shadow: 0 0 44px rgba(185, 165, 255, .3); }
-.theme-orb b { font-weight: 500; font-size: 1.02rem; display: block; letter-spacing: .03em; }
+.theme-orb:active b { text-shadow: 0 0 20px rgba(185, 165, 255, .6); }
+.theme-orb b { font-weight: 500; font-size: 1.02rem; display: block; }
 .theme-orb small { color: var(--dim); font-size: .72rem; font-style: italic; }
 @keyframes drift { from { transform: translateY(-4px); } to { transform: translateY(5px); } }
 .theme-orb:nth-child(2n) { animation-delay: .8s, -3s; }

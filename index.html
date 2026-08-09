@@ -56,11 +56,7 @@
   <!-- timeline view -->
   <section id="view-timeline" class="view" hidden>
     <header class="bar">
-      <button id="btn-write" class="orb-btn" aria-label="new thought" title="new thought">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-      </button>
+      <span class="orb-btn ghost"></span>
       <h1 id="timeline-title">thoughts</h1>
       <button id="btn-themes" class="orb-btn" aria-label="themes" title="themes">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -69,6 +65,7 @@
       </button>
     </header>
     <p id="ai-status" class="ai-status" hidden></p>
+    <button id="btn-new" class="new-thought" aria-label="new thought" title="new thought">+</button>
     <div id="timeline" class="timeline"></div>
   </section>
 

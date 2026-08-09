@@ -257,7 +257,7 @@ $('btn-overview').addEventListener('click', () => {
   deleteBtn.hidden = true;
   go('timeline');
 });
-$('btn-write').addEventListener('click', () => go('write'));
+$('btn-new').addEventListener('click', () => go('write'));
 $('btn-themes').addEventListener('click', () => go('themes'));
 $('btn-back').addEventListener('click', () => go('timeline'));
 

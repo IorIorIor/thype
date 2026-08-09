@@ -1,5 +1,5 @@
 // galaxy background: static nebula + breathing fog + stars (depth parallax),
-// constellations, meteors, rare comets, foreground dust motes — and the
+// constellations, meteors, foreground dust motes — and the
 // typing particle effects, with the sky brightening softly while you write.
 
 const starsCanvas = document.getElementById('stars');
@@ -123,9 +123,9 @@ function paintNebula() {
   cloud(n, core.x, core.y, diag * 0.06, '235,220,235', 0.09);
 
   // thousands of faint band stars
-  for (let i = 0; i < Math.min(2600, (NW * NH) / 220); i++) {
+  for (let i = 0; i < Math.min(5200, (NW * NH) / 110); i++) {
     const p = bandAt(gauss() * 1.1, diag * (0.035 + Math.random() * 0.06));
-    const r = Math.random() * 0.7 + 0.15;
+    const r = Math.random() * 0.35 + 0.08;
     const a = 0.08 + Math.random() * 0.5;
     const tint = Math.random();
     n.fillStyle = tint < 0.75 ? `rgba(255,255,255,${a})`
@@ -137,11 +137,11 @@ function paintNebula() {
   }
 
   // scattered field stars outside the band
-  for (let i = 0; i < (NW * NH) / 2600; i++) {
+  for (let i = 0; i < (NW * NH) / 1300; i++) {
     const a = 0.05 + Math.random() * 0.35;
     n.fillStyle = `rgba(255,255,255,${a})`;
     n.beginPath();
-    n.arc(Math.random() * NW, Math.random() * NH, Math.random() * 0.6 + 0.15, 0, Math.PI * 2);
+    n.arc(Math.random() * NW, Math.random() * NH, Math.random() * 0.3 + 0.08, 0, Math.PI * 2);
     n.fill();
   }
 
@@ -329,71 +329,6 @@ function updateMeteor(dt) {
   sctx.stroke();
 }
 
-// ---------- comets: rare, slow, with a long particle tail ----------
-
-let comet = null;
-let nextComet = 60 + Math.random() * 120;
-const cometTrail = [];
-
-function updateComet(dt) {
-  if (!comet) {
-    nextComet -= dt;
-    if (nextComet <= 0) {
-      const fromLeft = Math.random() < 0.5;
-      const speed = W * (0.035 + Math.random() * 0.025);
-      const drift = (Math.random() - 0.4) * speed * 0.45;
-      comet = {
-        x: fromLeft ? -30 : W + 30,
-        y: H * (0.12 + Math.random() * 0.45),
-        vx: fromLeft ? speed : -speed,
-        vy: drift,
-        life: 16 + Math.random() * 8,
-      };
-      nextComet = 150 + Math.random() * 180;
-    }
-  } else {
-    comet.x += comet.vx * dt;
-    comet.y += comet.vy * dt;
-    comet.life -= dt;
-    for (let i = 0; i < 3; i++) {
-      cometTrail.push({
-        x: comet.x + (Math.random() - 0.5) * 3,
-        y: comet.y + (Math.random() - 0.5) * 3,
-        vx: -comet.vx * (0.02 + Math.random() * 0.05),
-        vy: -comet.vy * 0.03 + (Math.random() - 0.5) * 3,
-        r: 0.4 + Math.random() * 1.3,
-        life: 1,
-        decay: dt / (2.2 + Math.random() * 1.8),
-      });
-    }
-    if (comet.life <= 0 || comet.x < -80 || comet.x > W + 80) comet = null;
-  }
-
-  for (let i = cometTrail.length - 1; i >= 0; i--) {
-    const p = cometTrail[i];
-    p.x += p.vx * dt * 60 * 0.016;
-    p.y += p.vy * dt;
-    p.life -= p.decay;
-    if (p.life <= 0) { cometTrail.splice(i, 1); continue; }
-    const a = p.life * p.life * 0.4;
-    sctx.fillStyle = `rgba(210,220,255,${a.toFixed(3)})`;
-    sctx.beginPath();
-    sctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
-    sctx.fill();
-  }
-
-  if (comet) {
-    sctx.save();
-    sctx.shadowColor = 'rgba(200,220,255,0.9)';
-    sctx.shadowBlur = 14;
-    sctx.fillStyle = 'rgba(245,248,255,0.95)';
-    sctx.beginPath();
-    sctx.arc(comet.x, comet.y, 1.9, 0, Math.PI * 2);
-    sctx.fill();
-    sctx.restore();
-  }
-}
-
 // ---------- foreground dust motes (nearest layer, sells the depth) ----------
 
 function seedMotes() {
@@ -513,9 +448,8 @@ function frame(now) {
   drawConstellation(dt, ox, oy);
 
   sctx.save();
-  sctx.translate(ox * 0.95, oy * 0.95);   // meteors & comets just behind the ui
+  sctx.translate(ox * 0.95, oy * 0.95);   // meteors streak just behind the ui
   updateMeteor(dt);
-  updateComet(dt);
   sctx.restore();
 
   pctx.setTransform(DPR, 0, 0, DPR, 0, 0);

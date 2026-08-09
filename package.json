@@ -1,0 +1,12 @@
+{
+  "name": "thype",
+  "version": "1.0.0",
+  "private": true,
+  "description": "the world's simplest journal — a black space, stars, and your thoughts",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -19,11 +19,11 @@ Everything stays on your device.
 It's a static site — no build step.
 
 ```sh
-python3 -m http.server 8000
-# open http://localhost:8000
+npm start            # zero-dependency Node server on :3000
+# or: python3 -m http.server 8000
 ```
 
-Or enable **GitHub Pages** on this repo (Settings → Pages → deploy from `main`) and install it as a PWA from your phone's browser: it works offline after the first visit.
+Deploy anywhere that serves files: **Railway** picks up `package.json` and runs `npm start` automatically, or enable **GitHub Pages** (Settings → Pages → deploy from `main`). Open it on your phone and "Add to Home Screen" — it works offline after the first visit.
 
 ## Stack
 

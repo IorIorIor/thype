@@ -403,9 +403,9 @@ function frame(now) {
   const ox = px + Math.sin(t * 0.12) * 5;
   const oy = py + Math.cos(t * 0.09) * 4;
 
-  // the ui rides its own layer: nearer than every star, behind the motes
-  document.documentElement.style.setProperty('--parx', (ox * 1.15).toFixed(1) + 'px');
-  document.documentElement.style.setProperty('--pary', (oy * 1.15).toFixed(1) + 'px');
+  // the ui barely sways — just enough to feel suspended, never enough to chase
+  document.documentElement.style.setProperty('--parx', (ox * 0.12).toFixed(1) + 'px');
+  document.documentElement.style.setProperty('--pary', (oy * 0.12).toFixed(1) + 'px');
 
   // the sky brightens a touch while thoughts are flowing
   const glowTarget = (t - lastTypeAt) < 2.5 ? 1 : 0;

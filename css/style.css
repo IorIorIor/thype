@@ -187,6 +187,7 @@ canvas#particles { z-index: 40; }
   gap: 12px;
   padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px 10px;
 }
+#timeline-title { display: none; }   /* no title over the thoughts, for now */
 .bar h1 {
   font-size: 1.1rem;
   font-weight: 400;
@@ -210,23 +211,34 @@ canvas#particles { z-index: 40; }
 }
 @keyframes shimmer { 0%, 100% { opacity: .25; } 50% { opacity: .85; } }
 
+/* the + heads the timeline itself: a stroked circle sitting on the line */
 .new-thought {
-  display: block;
-  margin: 2px auto 6px;
-  padding: 6px 26px;
+  position: relative;
+  width: 46px; height: 46px;
+  margin: 4px 0 14px 6px;   /* centered on the timeline's vertical line */
+  display: grid; place-items: center;
   background: none;
-  border: none;
+  border: 1px solid rgba(185, 165, 255, .35);
+  border-radius: 50%;
   color: var(--dim);
   font-family: var(--serif);
-  font-size: 2.3rem;
+  font-size: 1.8rem;
   font-weight: 300;
   line-height: 1;
   cursor: pointer;
-  transition: color .3s, text-shadow .3s;
+  box-shadow: 0 0 14px rgba(185, 165, 255, .12);
+  transition: color .3s, box-shadow .3s;
+}
+.new-thought::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 100%;
+  width: 1px; height: 15px;
+  background: rgba(185, 165, 255, .28);
 }
 .new-thought:active {
   color: var(--ink);
-  text-shadow: 0 0 22px rgba(185, 165, 255, .7);
+  box-shadow: 0 0 24px rgba(185, 165, 255, .35);
 }
 
 .timeline {
@@ -240,7 +252,7 @@ canvas#particles { z-index: 40; }
   position: absolute;
   left: 29px; top: 0; bottom: 0;
   width: 1px;
-  background: linear-gradient(to bottom, transparent, rgba(185, 165, 255, .28) 6%, rgba(185, 165, 255, .28) 94%, transparent);
+  background: linear-gradient(to bottom, rgba(185, 165, 255, .28), rgba(185, 165, 255, .28) 94%, transparent);
 }
 
 .bubble {

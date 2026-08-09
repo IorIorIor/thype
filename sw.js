@@ -1,4 +1,4 @@
-const CACHE = 'thype-v1';
+const CACHE = 'thype-v2';
 const SHELL = [
   './',
   './index.html',

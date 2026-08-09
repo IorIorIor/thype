@@ -66,15 +66,20 @@ canvas#particles { z-index: 40; }
   flex: 1;
   overflow-y: auto;
   outline: none;
-  padding: calc(env(safe-area-inset-top, 0px) + 84px) 7vw 40vh;
+  padding: calc(env(safe-area-inset-top, 0px) + 84px) 7vw 55vh;
   font-size: clamp(1.55rem, 5.6vw, 2.4rem);
   line-height: 1.5;
   font-weight: 400;
   letter-spacing: .01em;
   caret-color: var(--accent);
   word-break: break-word;
+  white-space: pre-wrap;
   text-shadow: 0 0 24px rgba(185, 165, 255, .12);
 }
+#editor .char-in {
+  animation: charfade .2s ease-out both;
+}
+@keyframes charfade { from { opacity: 0; } to { opacity: 1; } }
 #editor:empty::before {
   content: attr(data-placeholder);
   color: rgba(236, 231, 244, .22);
@@ -195,18 +200,20 @@ canvas#particles { z-index: 40; }
   word-break: break-word;
 }
 .bubble.open .body { display: block; }
-.bubble .del {
+.bubble .del, .bubble .edit {
   display: none;
   margin-top: 14px;
+  margin-right: 22px;
   font-family: var(--serif);
   font-size: .78rem;
   letter-spacing: .2em;
-  color: rgba(255, 140, 150, .65);
   background: none; border: none;
   cursor: pointer;
   font-style: italic;
 }
-.bubble.open .del { display: inline-block; }
+.bubble .edit { color: rgba(185, 165, 255, .75); }
+.bubble .del { color: rgba(255, 140, 150, .65); }
+.bubble.open .del, .bubble.open .edit { display: inline-block; }
 
 .empty-note {
   margin-top: 26vh;

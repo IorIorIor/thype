@@ -50,51 +50,162 @@ function caretPoint() {
   const range = sel.getRangeAt(0).cloneRange();
   range.collapse(true);
   let rect = range.getClientRects()[0];
-  if (!rect || (rect.width === 0 && rect.height === 0 && rect.x === 0 && rect.y === 0)) {
-    rect = range.startContainer.nodeType === 1
-      ? range.startContainer.getBoundingClientRect()
-      : editor.getBoundingClientRect();
+  if (rect && (rect.width || rect.height || rect.x || rect.y)) {
+    return { x: rect.left + 2, y: rect.top + (rect.height || 24) / 2 };
   }
-  return { x: rect.left + (rect.width || 2), y: rect.top + (rect.height || 24) / 2 };
+  // collapsed range at an element boundary (e.g. right after a fade span)
+  // has no rects — measure the node just before the caret instead
+  const node = range.startContainer;
+  if (node.nodeType === 1 && range.startOffset > 0) {
+    const child = node.childNodes[range.startOffset - 1];
+    if (child) {
+      if (child.nodeType === 1) rect = child.getBoundingClientRect();
+      else {
+        const rr = document.createRange();
+        rr.selectNodeContents(child);
+        rect = rr.getBoundingClientRect();
+      }
+      if (rect && (rect.width || rect.height)) {
+        return { x: rect.right, y: rect.top + rect.height / 2 };
+      }
+    }
+  }
+  return null;
+}
+
+// wrap the just-typed character(s) in a span that fades in over 200ms
+function fadeLastTyped(len) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const r = sel.getRangeAt(0);
+  if (!r.collapsed) return;
+  const node = r.startContainer;
+  if (node.nodeType !== Node.TEXT_NODE || r.startOffset === 0) return;
+  const range = document.createRange();
+  range.setStart(node, Math.max(0, r.startOffset - len));
+  range.setEnd(node, r.startOffset);
+  const span = document.createElement('span');
+  span.className = 'char-in';
+  try { range.surroundContents(span); } catch { return; }
+  const after = document.createRange();
+  after.setStartAfter(span);
+  after.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(after);
+}
+
+// keep the line being typed vertically centered in the visible area
+const vv = window.visualViewport;
+let glideRaf = null;
+function glideScroll(target) {
+  cancelAnimationFrame(glideRaf);
+  const start = editor.scrollTop;
+  const dist = target - start;
+  if (Math.abs(dist) < 1) return;
+  const t0 = performance.now();
+  const dur = 220;
+  const step = (t) => {
+    const k = Math.min(1, (t - t0) / dur);
+    editor.scrollTop = start + dist * (1 - Math.pow(1 - k, 3));
+    if (k < 1) glideRaf = requestAnimationFrame(step);
+  };
+  glideRaf = requestAnimationFrame(step);
+}
+
+function centerCaret() {
+  if (!editor.innerText.trim()) return;
+  const pt = caretPoint();
+  if (!pt) return;
+  const top = vv ? vv.offsetTop : 0;
+  const height = vv ? vv.height : window.innerHeight;
+  const delta = pt.y - (top + height * 0.45);
+  if (Math.abs(delta) > 14) glideScroll(editor.scrollTop + delta);
 }
 
 editor.addEventListener('input', (e) => {
   saveBtn.hidden = editor.innerText.trim().length === 0;
-  if (e.inputType && e.inputType.startsWith('delete')) return;
-  const pt = caretPoint();
-  if (pt) burst(pt.x, pt.y, 4 + ((Math.random() * 3) | 0));
+  if (!e.isComposing && e.inputType === 'insertText' && e.data) fadeLastTyped(e.data.length);
+  if (!e.inputType || !e.inputType.startsWith('delete')) {
+    const pt = caretPoint();
+    if (pt) burst(pt.x, pt.y, 4 + ((Math.random() * 3) | 0));
+  }
+  centerCaret();
+});
+
+// try to bring up the on-screen keyboard (mobile browsers may still
+// require a first tap — anywhere on the sky works, the editor is fullscreen)
+function summonKeyboard() {
+  if (!views.write.hidden) {
+    editor.focus({ preventScroll: true });
+    try { navigator.virtualKeyboard?.show(); } catch { /* not supported */ }
+  }
+}
+window.addEventListener('pageshow', summonKeyboard);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') summonKeyboard();
 });
 
 // keep the save pill above the on-screen keyboard
-const vv = window.visualViewport;
 if (vv) {
   const place = () => {
     const covered = window.innerHeight - vv.height - vv.offsetTop;
     saveBtn.style.bottom = `calc(env(safe-area-inset-bottom, 0px) + 26px + ${Math.max(0, covered)}px)`;
   };
-  vv.addEventListener('resize', place);
+  vv.addEventListener('resize', () => { place(); centerCaret(); });
   vv.addEventListener('scroll', place);
+}
+
+let editingEntry = null;
+
+function startEdit(entry) {
+  editingEntry = entry;
+  editor.textContent = entry.text;
+  saveBtn.hidden = false;
+  go('write');
+  requestAnimationFrame(() => {
+    const r = document.createRange();
+    r.selectNodeContents(editor);
+    r.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+    centerCaret();
+  });
 }
 
 saveBtn.addEventListener('click', async () => {
   const text = editor.innerText.replace(/\n{3,}/g, '\n\n').trim();
   if (!text) return;
-  const entry = {
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(),
+  const meta = {
     text,
-    created: Date.now(),
     title: ai.heuristicTitle(text),
     theme: ai.heuristicTheme(text),
     aiPending: ai.hasWebGPU,
   };
-  await addEntry(entry);
+  if (editingEntry) {
+    await updateEntry({ ...editingEntry, ...meta });
+    editingEntry = null;
+  } else {
+    await addEntry({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(),
+      created: Date.now(),
+      ...meta,
+    });
+  }
   editor.textContent = '';
   saveBtn.hidden = true;
   go('timeline');
   if (ai.hasWebGPU) enrichPending();
 });
 
-$('btn-overview').addEventListener('click', () => go('timeline'));
+$('btn-overview').addEventListener('click', () => {
+  if (editingEntry) {           // leaving mid-edit abandons the edit
+    editingEntry = null;
+    editor.textContent = '';
+    saveBtn.hidden = true;
+  }
+  go('timeline');
+});
 $('btn-write').addEventListener('click', () => go('write'));
 $('btn-themes').addEventListener('click', () => go('themes'));
 $('btn-back').addEventListener('click', () => go('timeline'));
@@ -178,6 +289,14 @@ async function renderTimeline() {
     body.className = 'body';
     body.textContent = entry.text;
 
+    const edit = document.createElement('button');
+    edit.className = 'edit';
+    edit.textContent = 'edit';
+    edit.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startEdit(entry);
+    });
+
     const del = document.createElement('button');
     del.className = 'del';
     del.textContent = 'let it go';
@@ -193,7 +312,7 @@ async function renderTimeline() {
       }
     });
 
-    b.append(h, t, body, del);
+    b.append(h, t, body, edit, del);
     b.addEventListener('click', () => b.classList.toggle('open'));
     timelineEl.append(b);
   });
@@ -244,6 +363,7 @@ async function renderThemes() {
 // PWA always opens on the write screen
 if (location.hash) history.replaceState(null, '', location.pathname + location.search);
 show('write');
+summonKeyboard();
 enrichPending();
 
 if ('serviceWorker' in navigator) {

@@ -106,22 +106,21 @@ function paintNebula() {
 
   n.globalCompositeOperation = 'lighter';
 
-  // ambient gas clouds (the breathing fog layers add the rest)
-  cloud(n, NW * 0.78, NH * 0.06, diag * 0.42, '96,54,150', 0.11);
-  cloud(n, NW * 0.10, NH * 0.95, diag * 0.38, '40,70,150', 0.10);
-  cloud(n, NW * 0.30, NH * 0.30, diag * 0.30, '150,60,120', 0.05);
-  cloud(n, NW * 0.85, NH * 0.65, diag * 0.26, '50,120,150', 0.04);
+  // barely-there ambient wash — the sky itself stays black
+  cloud(n, NW * 0.78, NH * 0.06, diag * 0.42, '96,54,150', 0.045);
+  cloud(n, NW * 0.10, NH * 0.95, diag * 0.38, '40,70,150', 0.04);
 
-  // glowing puffs hugging the band
-  for (let i = 0; i < 26; i++) {
-    const p = bandAt(gauss() * 0.9, diag * 0.05);
+  // the nebulae proper: compact, structured puffs hugging the band so
+  // they read as clouds against black instead of a broad haze
+  for (let i = 0; i < 34; i++) {
+    const p = bandAt(gauss() * 0.9, diag * 0.045);
     const colors = ['120,90,200', '80,90,190', '160,80,160', '90,130,190'];
-    cloud(n, p.x, p.y, diag * (0.05 + Math.random() * 0.09), colors[i % colors.length], 0.05 + Math.random() * 0.05);
+    cloud(n, p.x, p.y, diag * (0.03 + Math.random() * 0.07), colors[i % colors.length], 0.055 + Math.random() * 0.05);
   }
   // bright galactic core
   const core = bandAt(0.05, 0);
-  cloud(n, core.x, core.y, diag * 0.16, '210,190,230', 0.10);
-  cloud(n, core.x, core.y, diag * 0.07, '235,220,235', 0.10);
+  cloud(n, core.x, core.y, diag * 0.14, '210,190,230', 0.08);
+  cloud(n, core.x, core.y, diag * 0.06, '235,220,235', 0.09);
 
   // thousands of faint band stars
   for (let i = 0; i < Math.min(2600, (NW * NH) / 220); i++) {
@@ -167,9 +166,9 @@ function paintFog(canvas, colors) {
   n.clearRect(0, 0, NW, NH);
   n.globalCompositeOperation = 'lighter';
   const diag = Math.hypot(NW, NH);
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     cloud(n, Math.random() * NW, Math.random() * NH,
-      diag * (0.10 + Math.random() * 0.16), colors[i % colors.length], 0.05 + Math.random() * 0.04);
+      diag * (0.07 + Math.random() * 0.11), colors[i % colors.length], 0.04 + Math.random() * 0.035);
   }
 }
 
@@ -179,14 +178,14 @@ function drawFog(ox, oy) {
   sctx.globalCompositeOperation = 'lighter';
 
   const s1 = 1 + 0.03 * Math.sin(t * 0.041);
-  sctx.globalAlpha = 0.5 + 0.28 * Math.sin(t * 0.053 + 1.2);
+  sctx.globalAlpha = 0.38 + 0.22 * Math.sin(t * 0.053 + 1.2);
   sctx.drawImage(fogA,
     -PAD + ox * 0.22 + Math.sin(t * 0.047) * 16 - (NW * (s1 - 1)) / 2,
     -PAD + oy * 0.22 + Math.cos(t * 0.034) * 12 - (NH * (s1 - 1)) / 2,
     NW * s1, NH * s1);
 
   const s2 = 1 + 0.035 * Math.sin(t * 0.029 + 3);
-  sctx.globalAlpha = 0.45 + 0.3 * Math.sin(t * 0.038 + 4.1);
+  sctx.globalAlpha = 0.34 + 0.24 * Math.sin(t * 0.038 + 4.1);
   sctx.drawImage(fogB,
     -PAD + ox * 0.32 - Math.sin(t * 0.036 + 1) * 14 - (NW * (s2 - 1)) / 2,
     -PAD + oy * 0.32 + Math.sin(t * 0.051 + 2) * 10 - (NH * (s2 - 1)) / 2,
@@ -211,17 +210,17 @@ function pickTint() {
 }
 
 function seedStars() {
-  const count = Math.round(((W + PAD * 2) * (H + PAD * 2)) / 3800);
+  const count = Math.round(((W + PAD * 2) * (H + PAD * 2)) / 1900);
   stars = Array.from({ length: count }, () => {
     const bright = Math.random() < 0.06;
     return {
       x: -PAD + Math.random() * (W + PAD * 2),
       y: -PAD + Math.random() * (H + PAD * 2),
-      r: bright ? 1.1 + Math.random() * 1.3 : 0.25 + Math.random() * 0.85,
+      r: bright ? 0.55 + Math.random() * 0.65 : 0.12 + Math.random() * 0.42,
       bright,
-      depth: bright ? 0.8 + Math.random() * 0.5 : 0.35 + Math.random() * 0.75,
+      depth: bright ? 0.6 + Math.random() * 0.3 : 0.25 + Math.random() * 0.55,
       tw: Math.random() * Math.PI * 2,
-      ts: 0.4 + Math.random() * 1.6,
+      ts: 0.8 + Math.random() * 2.4,
       vy: 0.003 + Math.random() * 0.012,
       c: pickTint(),
     };
@@ -406,7 +405,7 @@ function seedMotes() {
     vx: (Math.random() - 0.5) * 0.12,
     vy: -0.03 - Math.random() * 0.09,
     ph: Math.random() * Math.PI * 2,
-    depth: 1.35 + Math.random() * 0.6,
+    depth: 1.5 + Math.random() * 0.5,   // in front of the ui layer
   }));
 }
 
@@ -469,6 +468,10 @@ function frame(now) {
   const ox = px + Math.sin(t * 0.12) * 5;
   const oy = py + Math.cos(t * 0.09) * 4;
 
+  // the ui rides its own layer: nearer than every star, behind the motes
+  document.documentElement.style.setProperty('--parx', (ox * 1.15).toFixed(1) + 'px');
+  document.documentElement.style.setProperty('--pary', (oy * 1.15).toFixed(1) + 'px');
+
   // the sky brightens a touch while thoughts are flowing
   const glowTarget = (t - lastTypeAt) < 2.5 ? 1 : 0;
   typingGlow += (glowTarget - typingGlow) * (glowTarget ? 0.05 : 0.015);
@@ -510,7 +513,7 @@ function frame(now) {
   drawConstellation(dt, ox, oy);
 
   sctx.save();
-  sctx.translate(ox * 1.1, oy * 1.1);   // meteors & comets streak in a near layer
+  sctx.translate(ox * 0.95, oy * 0.95);   // meteors & comets just behind the ui
   updateMeteor(dt);
   updateComet(dt);
   sctx.restore();

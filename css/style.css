@@ -15,10 +15,10 @@ body {
   font-family: var(--serif);
   color: var(--ink);
   background:
-    radial-gradient(120vmax 80vmax at 72% -12%, rgba(96, 54, 150, .30), transparent 60%),
-    radial-gradient(100vmax 70vmax at 12% 112%, rgba(34, 66, 140, .26), transparent 60%),
-    radial-gradient(60vmax 50vmax at 50% 55%, rgba(140, 60, 110, .07), transparent 70%),
-    #05030f;
+    radial-gradient(120vmax 80vmax at 72% -12%, rgba(96, 54, 150, .10), transparent 60%),
+    radial-gradient(100vmax 70vmax at 12% 112%, rgba(34, 66, 140, .08), transparent 60%),
+    radial-gradient(60vmax 50vmax at 50% 55%, rgba(140, 60, 110, .03), transparent 70%),
+    #020109;
   overflow: hidden;
   overscroll-behavior: none;
 }
@@ -34,9 +34,11 @@ canvas#particles { z-index: 40; }
   position: fixed; inset: 0; z-index: 10;
   display: flex; flex-direction: column;
   animation: fadein .45s ease both;
+  /* the ui floats in its own parallax layer, between the sky and the motes */
+  transform: translate3d(var(--parx, 0px), var(--pary, 0px), 0);
 }
 [hidden] { display: none !important; }
-@keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---------- auth ---------- */
 
@@ -166,7 +168,7 @@ canvas#particles { z-index: 40; }
   text-shadow: 0 0 24px rgba(185, 165, 255, .12);
 }
 #editor .char-in {
-  animation: charfade .55s ease-out both;
+  animation: charfade .25s ease-out both;
 }
 @keyframes charfade { from { opacity: 0; } to { opacity: 1; } }
 #editor:empty::before {

@@ -1,4 +1,4 @@
-const CACHE = 'thype-v4';
+const CACHE = 'thype-v5';
 const SHELL = [
   './',
   './index.html',
@@ -29,7 +29,9 @@ self.addEventListener('activate', (e) => {
 // shards): network, falling back to cache — WebLLM caches model weights itself.
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
-  const sameOrigin = new URL(e.request.url).origin === location.origin;
+  const url = new URL(e.request.url);
+  const sameOrigin = url.origin === location.origin;
+  if (sameOrigin && url.pathname.includes('/api/')) return;   // live data, never cached
 
   if (sameOrigin) {
     e.respondWith(

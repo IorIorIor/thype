@@ -1,9 +1,10 @@
-import { addEntry, updateEntry, deleteEntry, getEntries } from './store.js';
+import { addEntry, updateEntry, deleteEntry, getEntries, syncLocal, auth } from './store.js';
 import { burst } from './fx.js';
 import * as ai from './ai.js';
 
 const $ = (id) => document.getElementById(id);
-const views = { write: $('view-write'), timeline: $('view-timeline'), themes: $('view-themes') };
+const views = { auth: $('view-auth'), write: $('view-write'), timeline: $('view-timeline'), themes: $('view-themes') };
+let authed = false;
 const editor = $('editor');
 const saveBtn = $('btn-save');
 const timelineEl = $('timeline');
@@ -16,10 +17,12 @@ let themeFilter = null;
 // ---------- routing ----------
 
 function show(name) {
+  if (!authed && name !== 'auth') name = 'auth';
   for (const [k, el] of Object.entries(views)) el.hidden = k !== name;
+  if (name === 'auth') requestAnimationFrame(() => $('auth-user').focus());
   if (name === 'write') requestAnimationFrame(() => editor.focus());
-  if (name === 'timeline') renderTimeline();
-  if (name === 'themes') renderThemes();
+  if (name === 'timeline') renderTimeline().catch(() => {});
+  if (name === 'themes') renderThemes().catch(() => {});
 }
 
 function go(name) {
@@ -30,7 +33,7 @@ function go(name) {
 
 window.addEventListener('hashchange', () => {
   const name = location.hash.replace('#', '') || 'write';
-  if (views[name]) show(name);
+  if (views[name] && name !== 'auth') show(name);
 });
 
 // ---------- write view ----------
@@ -198,15 +201,19 @@ saveBtn.addEventListener('click', async () => {
     theme: ai.heuristicTheme(text),
     aiPending: ai.hasWebGPU,
   };
-  if (editingEntry) {
-    await updateEntry({ ...editingEntry, ...meta });
-    editingEntry = null;
-  } else {
-    await addEntry({
-      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(),
-      created: Date.now(),
-      ...meta,
-    });
+  try {
+    if (editingEntry) {
+      await updateEntry({ ...editingEntry, ...meta });
+      editingEntry = null;
+    } else {
+      await addEntry({
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(),
+        created: Date.now(),
+        ...meta,
+      });
+    }
+  } catch {
+    return;   // signed out mid-save — auth screen is up, the text stays put
   }
   editor.textContent = '';
   saveBtn.hidden = true;
@@ -226,7 +233,7 @@ deleteBtn.addEventListener('click', async () => {
     return;
   }
   clearTimeout(disarmTimer);
-  await deleteEntry(editingEntry.id);
+  await deleteEntry(editingEntry.id).catch(() => {});
   editingEntry = null;
   editor.textContent = '';
   saveBtn.hidden = true;
@@ -248,6 +255,54 @@ $('btn-write').addEventListener('click', () => go('write'));
 $('btn-themes').addEventListener('click', () => go('themes'));
 $('btn-back').addEventListener('click', () => go('timeline'));
 
+// ---------- account ----------
+
+const authForm = $('auth-form');
+const authError = $('auth-error');
+let creatingAccount = false;
+
+$('auth-toggle').addEventListener('click', () => {
+  creatingAccount = !creatingAccount;
+  $('auth-submit').textContent = creatingAccount ? 'begin' : 'enter';
+  $('auth-toggle').textContent = creatingAccount
+    ? 'already have an account? enter'
+    : 'new here? create an account';
+  $('auth-pass').autocomplete = creatingAccount ? 'new-password' : 'current-password';
+  authError.hidden = true;
+});
+
+authForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  authError.hidden = true;
+  const username = $('auth-user').value.trim();
+  const password = $('auth-pass').value;
+  try {
+    await (creatingAccount ? auth.register : auth.login)(username, password);
+    authed = true;
+    $('auth-pass').value = '';
+    syncLocal().catch(() => {});   // lift any thoughts saved before the account
+    show('write');
+    summonKeyboard();
+    enrichPending();
+  } catch (err) {
+    authError.textContent = err.offline
+      ? 'the stars are unreachable — no connection'
+      : (err.message || "that didn't work");
+    authError.hidden = false;
+  }
+});
+
+$('btn-logout').addEventListener('click', async () => {
+  await auth.logout().catch(() => {});
+  location.href = location.pathname;   // clean reload → auth screen
+});
+
+window.addEventListener('thype:unauth', () => {
+  if (!authed) return;
+  authed = false;
+  show('auth');
+});
+
 // ---------- ai enrichment (background) ----------
 
 ai.onStatus((msg) => {
@@ -258,7 +313,7 @@ ai.onStatus((msg) => {
 
 let enriching = false;
 async function enrichPending() {
-  if (enriching || !ai.hasWebGPU) return;
+  if (enriching || !ai.hasWebGPU || !authed) return;
   enriching = true;
   try {
     let pending = (await getEntries()).filter(e => e.aiPending);
@@ -277,7 +332,8 @@ async function enrichPending() {
       }
       if (!pending.length) pending = (await getEntries()).filter(e => e.aiPending);
     }
-  } finally {
+  } catch { /* signed out or offline mid-run — resume next boot */ }
+  finally {
     enriching = false;
   }
 }
@@ -372,11 +428,20 @@ async function renderThemes() {
 
 // ---------- boot ----------
 
-// PWA always opens on the write screen
+// PWA always opens on the write screen (after sign-in)
 if (location.hash) history.replaceState(null, '', location.pathname + location.search);
-show('write');
-summonKeyboard();
-enrichPending();
+(async () => {
+  const me = await auth.me();
+  if (me === null) {
+    show('auth');
+  } else {                       // signed in, or offline (thoughts queue locally)
+    authed = true;
+    if (me !== 'offline') syncLocal().catch(() => {});
+    show('write');
+    summonKeyboard();
+    enrichPending();
+  }
+})();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});

@@ -38,6 +38,80 @@ canvas#particles { z-index: 40; }
 [hidden] { display: none !important; }
 @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
+/* ---------- auth ---------- */
+
+#view-auth { align-items: center; justify-content: center; }
+
+.auth-box {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(320px, 82vw);
+  text-align: center;
+  animation: fadein .6s ease both;
+}
+.auth-title {
+  font-size: 2.1rem;
+  font-weight: 400;
+  letter-spacing: .5em;
+  text-indent: .5em;
+  text-shadow: 0 0 30px rgba(185, 165, 255, .35);
+}
+.auth-sub {
+  color: var(--dim);
+  font-style: italic;
+  font-size: .92rem;
+  margin-bottom: 16px;
+}
+#auth-form { display: flex; flex-direction: column; gap: 14px; }
+#auth-form input {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--glass-edge);
+  border-radius: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  padding: 10px 4px;
+  outline: none;
+  text-align: center;
+  caret-color: var(--accent);
+  transition: border-color .3s;
+}
+#auth-form input:focus { border-color: rgba(185, 165, 255, .5); }
+#auth-form input::placeholder { color: rgba(236, 231, 244, .25); font-style: italic; }
+.auth-submit {
+  margin: 16px auto 0;
+  font-family: var(--serif);
+  font-size: 1rem;
+  letter-spacing: .3em;
+  text-indent: .3em;
+  color: var(--ink);
+  padding: 12px 36px;
+  border-radius: 999px;
+  background: none;
+  border: 1px solid var(--glass-edge);
+  box-shadow: 0 0 26px rgba(185, 165, 255, .12);
+  cursor: pointer;
+  transition: box-shadow .3s;
+}
+.auth-submit:active { box-shadow: 0 0 40px rgba(185, 165, 255, .3); }
+.auth-toggle {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: .85rem;
+  cursor: pointer;
+  padding: 8px;
+}
+.auth-error {
+  color: rgba(255, 140, 150, .8);
+  font-size: .85rem;
+  font-style: italic;
+}
+
 /* ---------- write ---------- */
 
 .orb-btn {

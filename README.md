@@ -6,25 +6,29 @@ The world's simplest journal. A black space with stars, a keyboard, and nothing 
 - **Thoughts** — saved entries appear as glass bubbles on a vertical timeline, newest first, each with an AI-generated title. Tap a bubble to read it; "let it go" to delete.
 - **Themes** — the AI names a theme for every entry and gathers them into floating orbs, sized by how often a theme recurs. Tap one to see its thoughts.
 
-## Privacy
+## Accounts & privacy
 
-Everything stays on your device.
+Thoughts belong to an account (username + password) and are stored on the server, so they survive cleared browsers and follow you across devices.
 
-- Entries live in your browser's IndexedDB — no accounts, no server, nothing leaves your phone.
-- Titles and themes are generated **locally** by a tiny language model ([Qwen 2.5 0.5B](https://github.com/mlc-ai/web-llm) running in-browser via WebGPU). The model (~350 MB) downloads once, in the background, the first time you save.
-- No WebGPU? The app still works — titles fall back to a simple heuristic, silently.
+- Passwords are scrypt-hashed; sessions are HttpOnly cookies that last ~6 months.
+- If the network is away, thoughts queue in the browser (IndexedDB) and lift into the account on the next connected visit.
+- Titles and themes are still generated **locally** by a tiny language model ([Qwen 2.5 0.5B](https://github.com/mlc-ai/web-llm) running in-browser via WebGPU) — your text is never sent to any AI service. The model (~350 MB) downloads once, in the background. No WebGPU? Titles fall back to a simple heuristic, silently.
 
 ## Running it
 
-It's a static site — no build step.
-
 ```sh
 npm start            # zero-dependency Node server on :3000
-# or: python3 -m http.server 8000
 ```
 
-Deploy anywhere that serves files: **Railway** picks up `package.json` and runs `npm start` automatically, or enable **GitHub Pages** (Settings → Pages → deploy from `main`). Open it on your phone and "Add to Home Screen" — it works offline after the first visit.
+Data lands in `./data/db.json` (or `$DATA_DIR/db.json`).
+
+## Deploying on Railway
+
+1. Deploy the repo as a service — Railway detects `package.json` and runs `npm start`.
+2. Add a **Volume** to the service (right-click the service → Attach Volume) with **mount path `/data`** — without it, accounts and thoughts are wiped on every deploy.
+3. Set the environment variable **`DATA_DIR=/data`** on the service.
+4. Redeploy. Keep the service at a single replica (the store is one JSON file).
 
 ## Stack
 
-Vanilla HTML/CSS/JS, two `<canvas>` layers (starfield + typing particles), IndexedDB, a service worker for offline, and [WebLLM](https://github.com/mlc-ai/web-llm) for on-device titles. No frameworks, no dependencies, no telemetry.
+Vanilla HTML/CSS/JS, two `<canvas>` layers (galaxy + typing particles), a dependency-free Node server with a JSON-file store, a service worker for offline shell caching, and [WebLLM](https://github.com/mlc-ai/web-llm) for on-device titles. No frameworks, no dependencies, no telemetry.

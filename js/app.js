@@ -1,5 +1,5 @@
 import { addEntry, updateEntry, deleteEntry, getEntries, syncLocal, auth, push } from './store.js';
-import { burst, enableMotion } from './fx.js';
+import { burst, enableMotion, notifyTyping } from './fx.js';
 import * as ai from './ai.js';
 
 const $ = (id) => document.getElementById(id);
@@ -130,6 +130,7 @@ function centerCaret() {
 
 editor.addEventListener('input', (e) => {
   saveBtn.hidden = editor.innerText.trim().length === 0;
+  notifyTyping();
   if (!e.isComposing && e.inputType === 'insertText' && e.data) fadeLastTyped(e.data.length);
   if (!e.inputType || !e.inputType.startsWith('delete')) {
     const pt = caretPoint();

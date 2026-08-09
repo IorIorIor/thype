@@ -166,7 +166,7 @@ canvas#particles { z-index: 40; }
   text-shadow: 0 0 24px rgba(185, 165, 255, .12);
 }
 #editor .char-in {
-  animation: charfade .2s ease-out both;
+  animation: charfade .55s ease-out both;
 }
 @keyframes charfade { from { opacity: 0; } to { opacity: 1; } }
 #editor:empty::before {

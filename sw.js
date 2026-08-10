@@ -1,4 +1,4 @@
-const CACHE = 'thype-v16';
+const CACHE = 'thype-v17';
 const SHELL = [
   './',
   './index.html',
@@ -20,7 +20,9 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      // only sweep our own old shell caches — other Cache API entries
+      // (WebLLM's model weights live there) must survive app updates
+      .then(keys => Promise.all(keys.filter(k => k.startsWith('thype-') && k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });

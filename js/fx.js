@@ -47,11 +47,14 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // iOS gates motion sensors behind a permission that must be requested
-// inside a user gesture; everywhere else this is a silent no-op
+// inside a user gesture; everywhere else this is a silent no-op.
+// never re-ask when tilt data is already flowing.
 export async function enableMotion() {
+  if (gyroSeen) return;
   try {
     if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
-      await DeviceOrientationEvent.requestPermission();
+      const res = await DeviceOrientationEvent.requestPermission();
+      if (res === 'granted') localStorage.setItem('thype-motion', '1');
     }
   } catch { /* declined — the sky stays still */ }
 }

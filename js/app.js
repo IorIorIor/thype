@@ -26,6 +26,27 @@ const ANIM_CLASSES = ['anim-fade-in', 'anim-zoom-arrive', 'anim-zoom-return', 'a
 let currentView = null;
 let navTarget = null;   // claimed before any await so a hashchange re-entry
                         // can't restart (and downgrade) an in-flight transition
+let clearEditorOnExit = false;   // the text must stay visible while the
+                                 // write view flies out, then be cleared
+
+function clearEditor() {
+  clearEditorOnExit = false;
+  editor.textContent = '';
+  saveBtn.hidden = true;
+  deleteBtn.hidden = true;
+}
+
+function finishHide(el) {
+  if (el === views[currentView]) {
+    // the user flew back in mid-transition — don't hide it, and only
+    // clear if no thought was reopened in the meantime
+    if (el === views.write && clearEditorOnExit && !editingEntry) clearEditor();
+    clearEditorOnExit = false;
+    return;
+  }
+  el.hidden = true;
+  if (el === views.write && clearEditorOnExit) clearEditor();
+}
 
 async function show(name) {
   if (!authed && name !== 'auth') name = 'auth';
@@ -56,9 +77,9 @@ async function show(name) {
     fromEl.classList.remove(...ANIM_CLASSES);
     if (outClass) {
       fromEl.classList.add(outClass);
-      setTimeout(() => { fromEl.hidden = true; fromEl.classList.remove(outClass); }, 340);
+      setTimeout(() => { finishHide(fromEl); fromEl.classList.remove(outClass); }, 340);
     } else {
-      fromEl.hidden = true;
+      finishHide(fromEl);
     }
   }
   toEl.classList.remove(...ANIM_CLASSES);
@@ -248,9 +269,7 @@ saveBtn.addEventListener('click', async () => {
   if (editingEntry && text === editingEntry.text) {
     // nothing changed — keep the title, just fly back out
     editingEntry = null;
-    editor.textContent = '';
-    saveBtn.hidden = true;
-    deleteBtn.hidden = true;
+    clearEditorOnExit = true;
     go('timeline');
     return;
   }
@@ -274,9 +293,7 @@ saveBtn.addEventListener('click', async () => {
   } catch {
     return;   // signed out mid-save — auth screen is up, the text stays put
   }
-  editor.textContent = '';
-  saveBtn.hidden = true;
-  deleteBtn.hidden = true;
+  clearEditorOnExit = true;
   go('timeline');
   if (ai.hasWebGPU) enrichPending();
 });
@@ -295,20 +312,18 @@ deleteBtn.addEventListener('click', async () => {
   clearTimeout(disarmTimer);
   await deleteEntry(editingEntry.id).catch(() => {});
   editingEntry = null;
-  editor.textContent = '';
-  saveBtn.hidden = true;
-  deleteBtn.hidden = true;
   disarmDelete();
+  clearEditorOnExit = true;
   go('timeline');
 });
 
 $('btn-overview').addEventListener('click', () => {
   if (editingEntry) {           // leaving mid-edit abandons the edit
     editingEntry = null;
-    editor.textContent = '';
-    saveBtn.hidden = true;
+    clearEditorOnExit = true;
+  } else {
+    deleteBtn.hidden = true;
   }
-  deleteBtn.hidden = true;
   go('timeline');
 });
 $('btn-new').addEventListener('click', () => go('write'));

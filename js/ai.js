@@ -40,19 +40,28 @@ function ensureEngine() {
   return enginePromise;
 }
 
-// few-shot pairs matter more than instructions for a model this small —
-// they show what "getting the gist" of a messy entry looks like
-async function ask({ system, shots = [], text, maxTokens, temperature = 0.3 }) {
+// techniques that matter for a 0.5B model: few-shot pairs that mirror the
+// task exactly, the instruction repeated AFTER the entry (small models weight
+// the end of context most), greedy decoding, and identical scaffolding on
+// every example so the pattern is unmissable
+async function ask({ system, shots = [], prompt, maxTokens, temperature = 0 }) {
   const engine = await ensureEngine();
   const messages = [{ role: 'system', content: system }];
   for (const [u, a] of shots) {
     messages.push({ role: 'user', content: u }, { role: 'assistant', content: a });
   }
-  messages.push({ role: 'user', content: text.slice(0, 1500) });
+  messages.push({ role: 'user', content: prompt });
   const reply = await engine.chat.completions.create({ messages, temperature, max_tokens: maxTokens });
   return (reply.choices?.[0]?.message?.content || '')
     .replace(/<think>[\s\S]*?<\/think>/g, '')   // some models leak reasoning tags
     .trim();
+}
+
+// long entries drown a tiny model in the middle; the point of a journal
+// entry usually lives at its start and end
+function condense(text, max = 1200) {
+  if (text.length <= max) return text;
+  return text.slice(0, 700) + ' … ' + text.slice(-450);
 }
 
 function cleanTitle(raw) {
@@ -68,42 +77,58 @@ function cleanTitle(raw) {
 }
 
 function cleanThemes(raw) {
-  const words = raw.toLowerCase().match(/[\p{L}]{3,20}/gu) || [];
+  const chatter = new Set(['the', 'themes', 'theme', 'are', 'and', 'entry', 'answer', 'this', 'about', 'main']);
+  const words = (raw.toLowerCase().match(/[\p{L}]{3,20}/gu) || []).filter(w => !chatter.has(w));
   return [...new Set(words)].slice(0, 3);
 }
 
+const TITLE_ASK = 'What is this entry really about? Answer with only a title: 2 to 6 plain words, sentence case, not a phrase copied from the entry.';
+const titlePrompt = (entry) => `Entry: ${entry}\n\n${TITLE_ASK}`;
+
+// every example uses the exact scaffold of the real request, and several
+// mirror the trap: a rambling entry with an easy-to-pluck noun phrase,
+// titled by its undercurrent instead
 const TITLE_SHOTS = [
-  ["ok so I barely slept again, three nights now, and I keep telling myself it's the coffee but honestly my head just won't shut up about the deadline and everything that comes after it",
+  [titlePrompt("ok so I barely slept again, three nights now, and I keep telling myself it's the coffee but honestly my head just won't shut up about the deadline and everything that comes after it"),
     'Racing thoughts and lost sleep'],
-  ["saw dad today. he looked smaller somehow. we talked about the garden like always and I didn't say any of the things I actually meant to say",
+  [titlePrompt("right, new plan, again. gym five times a week, no beer, actually answer emails. who am I kidding, I wrote the same list in January. but something has to give, I'm 38 and still living like a student. maybe start small. maybe just the sleep thing first."),
+    'Trying to change my life again'],
+  [titlePrompt("saw dad today. he looked smaller somehow. we talked about the garden like always and I didn't say any of the things I actually meant to say"),
     'Things left unsaid with dad'],
-  ["I keep opening the flat listings and closing them again. it's not the money. it's that leaving this city means admitting that chapter is over",
-    'Not ready to move on'],
+  [titlePrompt("do I even want the promotion? more money sure, but I'd never see daylight. and I'd be managing Karl, which, no. but if I say no do I just stay here forever?"),
+    'Doubts about the promotion'],
+  [titlePrompt("coffee with Marta today. we laughed so hard about the old office days that my cheeks hurt. I forget how easy it is with her. why do I let months go by?"),
+    'Remembering how easy friendship is'],
 ];
 
 export async function generateTitle(text) {
   const raw = await ask({
-    system: 'You title private journal entries. Read the whole entry, work out what it is REALLY about — the feeling or question underneath, not a phrase copied from the text — and reply with ONLY a title of 2 to 6 plain words. Sentence case. No quotes, no ending punctuation.',
+    system: 'You are a journal titling assistant. You always answer with only a short plain title in sentence case, no quotes and no ending punctuation, that captures what the entry is really about underneath — never a phrase copied from the entry.',
     shots: TITLE_SHOTS,
-    text,
+    prompt: titlePrompt(condense(text)),
     maxTokens: 24,
-    temperature: 0.3,
+    temperature: 0,
   });
   return cleanTitle(raw) || heuristicTitle(text);
 }
 
+const THEME_ASK = 'Name the 1 to 3 main themes of this entry. Each theme is ONE lowercase word (examples: love, work, family, friends, anxiety, dreams, gratitude, health, change, loss, hope, memory, nature, travel, money, creativity, loneliness, growth, food, rest, music, faith). Answer with only the words, comma separated.';
+const themePrompt = (entry) => `Entry: ${entry}\n\n${THEME_ASK}`;
+
 const THEME_SHOTS = [
-  [TITLE_SHOTS[0][0], 'work, anxiety, rest'],
-  [TITLE_SHOTS[1][0], 'family, regret'],
+  [themePrompt("ok so I barely slept again, three nights now, and I keep telling myself it's the coffee but honestly my head just won't shut up about the deadline and everything that comes after it"),
+    'work, anxiety, rest'],
+  [themePrompt("saw dad today. he looked smaller somehow. we talked about the garden like always and I didn't say any of the things I actually meant to say"),
+    'family, regret'],
 ];
 
 export async function generateThemes(text) {
   const raw = await ask({
-    system: 'Name the 1 to 3 main themes of this journal entry. Each theme is ONE lowercase word (examples: love, work, family, friends, anxiety, dreams, gratitude, health, change, loss, hope, memory, nature, travel, money, creativity, loneliness, growth, food, rest, music, faith). Reply with only the words, separated by commas.',
+    system: 'You are a journal theme assistant. You always answer with only 1 to 3 lowercase single-word themes, comma separated.',
     shots: THEME_SHOTS,
-    text,
+    prompt: themePrompt(condense(text)),
     maxTokens: 16,
-    temperature: 0.4,
+    temperature: 0,
   });
   const themes = cleanThemes(raw);
   return themes.length ? themes : heuristicThemes(text);

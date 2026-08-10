@@ -17,15 +17,53 @@ let themeFilter = null;
 // entries saved before multi-themes carry a single `theme` string
 const themesOf = (e) => (Array.isArray(e.themes) && e.themes.length ? e.themes : e.theme ? [e.theme] : []);
 
-// ---------- routing ----------
+// ---------- routing & transitions ----------
 
-function show(name) {
+// depth decides the transition: deeper = flying into a thought,
+// shallower = flying back out, same level = a plain fade
+const DEPTH = { auth: 1, timeline: 1, themes: 1, write: 2 };
+const ANIM_CLASSES = ['anim-fade-in', 'anim-zoom-arrive', 'anim-zoom-return', 'anim-zoom-away', 'anim-zoom-shrink'];
+let currentView = null;
+
+async function show(name) {
   if (!authed && name !== 'auth') name = 'auth';
-  for (const [k, el] of Object.entries(views)) el.hidden = k !== name;
+  if (name === currentView) return;
+
+  // render content while still hidden so nothing flickers in
+  if (name === 'timeline') await renderTimeline().catch(() => {});
+  if (name === 'themes') { await renderThemes().catch(() => {}); refreshRemindState(); }
+
+  const fromEl = currentView ? views[currentView] : null;
+  const toEl = views[name];
+  let outClass = null;
+  let inClass = 'anim-fade-in';
+  if (fromEl && DEPTH[name] !== DEPTH[currentView]) {
+    const diving = DEPTH[name] > DEPTH[currentView];
+    outClass = diving ? 'anim-zoom-away' : 'anim-zoom-shrink';
+    inClass = diving ? 'anim-zoom-arrive' : 'anim-zoom-return';
+  }
+  currentView = name;
+
+  for (const [k, el] of Object.entries(views)) {
+    if (k !== name && el !== fromEl) el.hidden = true;
+  }
+  if (fromEl && fromEl !== toEl) {
+    fromEl.classList.remove(...ANIM_CLASSES);
+    if (outClass) {
+      fromEl.classList.add(outClass);
+      setTimeout(() => { fromEl.hidden = true; fromEl.classList.remove(outClass); }, 340);
+    } else {
+      fromEl.hidden = true;
+    }
+  }
+  toEl.classList.remove(...ANIM_CLASSES);
+  toEl.hidden = false;
+  void toEl.offsetWidth;              // restart the css animation
+  toEl.classList.add(inClass);
+  setTimeout(() => toEl.classList.remove(inClass), 500);
+
   if (name === 'auth') requestAnimationFrame(() => $('auth-user').focus());
   if (name === 'write') requestAnimationFrame(() => editor.focus());
-  if (name === 'timeline') renderTimeline().catch(() => {});
-  if (name === 'themes') { renderThemes().catch(() => {}); refreshRemindState(); }
 }
 
 function go(name) {
@@ -139,6 +177,12 @@ editor.addEventListener('input', (e) => {
   centerCaret();
 });
 
+// wherever the caret lands — a tap, a selection, arrow keys — drift to it
+document.addEventListener('selectionchange', () => {
+  if (views.write.hidden || document.activeElement !== editor) return;
+  centerCaret();
+});
+
 // bring up the on-screen keyboard as eagerly as the platform allows.
 // iOS only opens it from a real tap; everywhere else focus + show() works.
 function summonKeyboard() {
@@ -163,21 +207,15 @@ document.addEventListener('touchend', (e) => {
 // iOS only grants motion (parallax) access inside a first real gesture
 document.addEventListener('touchend', () => enableMotion(), { once: true, passive: true });
 
-// keep the save pill above the on-screen keyboard
-if (vv) {
-  const place = () => {
-    const covered = window.innerHeight - vv.height - vv.offsetTop;
-    saveBtn.style.bottom = `calc(env(safe-area-inset-bottom, 0px) + 26px + ${Math.max(0, covered)}px)`;
-  };
-  vv.addEventListener('resize', () => { place(); centerCaret(); });
-  vv.addEventListener('scroll', place);
-}
+// the keyboard shrinking the viewport re-centers the current line
+if (vv) vv.addEventListener('resize', centerCaret);
 
 let editingEntry = null;
 const deleteBtn = $('btn-delete');
 
 function disarmDelete() {
   deleteBtn.classList.remove('armed');
+  deleteBtn.textContent = 'delete';
 }
 
 function startEdit(entry) {
@@ -187,20 +225,30 @@ function startEdit(entry) {
   deleteBtn.hidden = false;
   disarmDelete();
   go('write');
+  // open reading from the top: first line under the icons row, caret at start
   requestAnimationFrame(() => {
+    editor.scrollTop = 0;
     const r = document.createRange();
     r.selectNodeContents(editor);
-    r.collapse(false);
+    r.collapse(true);
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(r);
-    centerCaret();
   });
 }
 
 saveBtn.addEventListener('click', async () => {
   const text = editor.innerText.replace(/\n{3,}/g, '\n\n').trim();
   if (!text) return;
+  if (editingEntry && text === editingEntry.text) {
+    // nothing changed — keep the title, just fly back out
+    editingEntry = null;
+    editor.textContent = '';
+    saveBtn.hidden = true;
+    deleteBtn.hidden = true;
+    go('timeline');
+    return;
+  }
   const meta = {
     text,
     title: ai.heuristicTitle(text),
@@ -234,6 +282,7 @@ deleteBtn.addEventListener('click', async () => {
   if (!editingEntry) return;
   if (!deleteBtn.classList.contains('armed')) {
     deleteBtn.classList.add('armed');
+    deleteBtn.textContent = 'sure?';
     clearTimeout(disarmTimer);
     disarmTimer = setTimeout(disarmDelete, 2500);
     return;
@@ -445,10 +494,9 @@ async function renderTimeline() {
     return;
   }
 
-  entries.forEach((entry, i) => {
+  entries.forEach((entry) => {
     const b = document.createElement('article');
     b.className = 'bubble';
-    b.style.animationDelay = `${Math.min(i * 60, 500)}ms`;
 
     const h = document.createElement('h2');
     h.textContent = entry.title;
@@ -492,9 +540,7 @@ async function renderThemes() {
     orb.style.width = orb.style.height = `${size}px`;
     const label = document.createElement('b');
     label.textContent = theme;
-    const n = document.createElement('small');
-    n.textContent = count === 1 ? '1 thought' : `${count} thoughts`;
-    orb.append(label, n);
+    orb.append(label);
     orb.addEventListener('click', () => {
       themeFilter = theme;
       go('timeline');

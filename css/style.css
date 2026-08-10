@@ -33,12 +33,34 @@ canvas#particles { z-index: 40; }
 .view {
   position: fixed; inset: 0; z-index: 10;
   display: flex; flex-direction: column;
-  animation: fadein .45s ease both;
   /* the ui floats in its own parallax layer, between the sky and the motes */
   transform: translate3d(var(--parx, 0px), var(--pary, 0px), 0);
 }
 [hidden] { display: none !important; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- page transitions: flying into and out of a thought ---------- */
+
+.anim-fade-in { animation: fadein .4s ease both; }
+.anim-zoom-arrive { animation: zoomArrive .46s cubic-bezier(.22, .9, .3, 1) both; }
+.anim-zoom-return { animation: zoomReturn .46s cubic-bezier(.22, .9, .3, 1) both; }
+.anim-zoom-away { animation: zoomAway .34s ease-in both; pointer-events: none; }
+.anim-zoom-shrink { animation: zoomShrink .34s ease-in both; pointer-events: none; }
+
+@keyframes zoomArrive {
+  from { opacity: 0; transform: scale(.88) translate3d(var(--parx, 0px), var(--pary, 0px), 0); filter: blur(10px); }
+  to   { opacity: 1; transform: scale(1) translate3d(var(--parx, 0px), var(--pary, 0px), 0); filter: blur(0); }
+}
+@keyframes zoomReturn {
+  from { opacity: 0; transform: scale(1.1) translate3d(var(--parx, 0px), var(--pary, 0px), 0); filter: blur(10px); }
+  to   { opacity: 1; transform: scale(1) translate3d(var(--parx, 0px), var(--pary, 0px), 0); filter: blur(0); }
+}
+@keyframes zoomAway {
+  to { opacity: 0; transform: scale(1.12) translate3d(var(--parx, 0px), var(--pary, 0px), 0); filter: blur(10px); }
+}
+@keyframes zoomShrink {
+  to { opacity: 0; transform: scale(.88) translate3d(var(--parx, 0px), var(--pary, 0px), 0); filter: blur(10px); }
+}
 
 /* ---------- auth ---------- */
 
@@ -132,17 +154,12 @@ canvas#particles { z-index: 40; }
   left: calc(env(safe-area-inset-left, 0px) + 32px);
   z-index: 20;
 }
-#view-write #btn-delete {
-  left: auto;
-  right: calc(env(safe-area-inset-right, 0px) + 32px);
-}
-.orb-btn.danger.armed { color: rgba(255, 140, 150, .9); }
 
 #editor {
   flex: 1;
   overflow-y: auto;
   outline: none;
-  padding: calc(env(safe-area-inset-top, 0px) + 128px) 14vw 55vh;
+  padding: calc(env(safe-area-inset-top, 0px) + 112px) 14vw 55vh;
   font-size: clamp(1.55rem, 5.6vw, 2.4rem);
   line-height: 1.5;
   font-weight: 400;
@@ -163,23 +180,34 @@ canvas#particles { z-index: 40; }
   pointer-events: none;
 }
 
-.save-pill {
+/* save & delete live top right, as quiet words on the icons row */
+.top-actions {
   position: fixed;
-  right: calc(env(safe-area-inset-right, 0px) + 44px);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 44px);
+  top: calc(env(safe-area-inset-top, 0px) + 32px);
+  right: calc(env(safe-area-inset-right, 0px) + 32px);
+  height: 64px;
   z-index: 20;
-  font-family: var(--serif);
-  font-size: 1.15rem;
-  color: var(--ink);
-  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.top-actions button {
   background: none;
   border: none;
-  text-shadow: 0 0 16px rgba(185, 165, 255, .4);
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  padding: 12px 10px;
   cursor: pointer;
-  transition: text-shadow .3s, opacity .3s;
-  animation: fadein .4s ease both;
+  animation: fadein .3s ease both;
+  transition: text-shadow .3s;
 }
-.save-pill:active { text-shadow: 0 0 28px rgba(185, 165, 255, .8); }
+#btn-save {
+  color: var(--ink);
+  text-shadow: 0 0 16px rgba(185, 165, 255, .4);
+}
+#btn-save:active { text-shadow: 0 0 28px rgba(185, 165, 255, .8); }
+#btn-delete { color: rgba(255, 140, 150, .7); font-style: italic; }
+#btn-delete.armed { color: rgba(255, 140, 150, 1); text-shadow: 0 0 14px rgba(255, 140, 150, .5); }
 
 /* ---------- timeline ---------- */
 
@@ -268,7 +296,6 @@ canvas#particles { z-index: 40; }
   border: none;
   cursor: pointer;
   text-align: left;
-  animation: fadein .5s ease both;
 }
 .bubble::before {
   content: "";
@@ -324,14 +351,13 @@ canvas#particles { z-index: 40; }
   color: var(--ink);
   font-family: var(--serif);
   cursor: pointer;
-  animation: fadein .5s ease both, drift 7s ease-in-out infinite alternate;
+  animation: drift 7s ease-in-out infinite alternate;
 }
 .theme-orb:active b { text-shadow: 0 0 20px rgba(185, 165, 255, .6); }
 .theme-orb b { font-weight: 500; font-size: 1.02rem; display: block; }
-.theme-orb small { color: var(--dim); font-size: .72rem; font-style: italic; }
 @keyframes drift { from { transform: translateY(-4px); } to { transform: translateY(5px); } }
-.theme-orb:nth-child(2n) { animation-delay: .8s, -3s; }
-.theme-orb:nth-child(3n) { animation-delay: .3s, -5s; }
+.theme-orb:nth-child(2n) { animation-delay: -3s; }
+.theme-orb:nth-child(3n) { animation-delay: -5s; }
 
 /* ---------- logout confirmation ---------- */
 

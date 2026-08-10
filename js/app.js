@@ -24,15 +24,20 @@ const themesOf = (e) => (Array.isArray(e.themes) && e.themes.length ? e.themes :
 const DEPTH = { auth: 1, timeline: 1, themes: 1, write: 2 };
 const ANIM_CLASSES = ['anim-fade-in', 'anim-zoom-arrive', 'anim-zoom-return', 'anim-zoom-away', 'anim-zoom-shrink'];
 let currentView = null;
+let navTarget = null;   // claimed before any await so a hashchange re-entry
+                        // can't restart (and downgrade) an in-flight transition
 
 async function show(name) {
   if (!authed && name !== 'auth') name = 'auth';
-  if (name === currentView) return;
+  if (name === currentView || name === navTarget) return;
+  navTarget = name;
 
   // render content while still hidden so nothing flickers in
   if (name === 'timeline') await renderTimeline().catch(() => {});
   if (name === 'themes') { await renderThemes().catch(() => {}); refreshRemindState(); }
 
+  if (navTarget !== name) return;   // superseded by a newer navigation
+  navTarget = null;
   const fromEl = currentView ? views[currentView] : null;
   const toEl = views[name];
   let outClass = null;

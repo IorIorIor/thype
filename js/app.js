@@ -1,5 +1,5 @@
 import { addEntry, updateEntry, deleteEntry, getEntries, syncLocal, auth, push } from './store.js';
-import { burst, enableMotion, notifyTyping } from './fx.js';
+import { burst, enableMotion, motionState, toggleMotion, notifyTyping } from './fx.js';
 import * as ai from './ai.js';
 
 const $ = (id) => document.getElementById(id);
@@ -230,7 +230,8 @@ document.addEventListener('touchend', (e) => {
   if (views.write.hidden || e.target.closest('button')) return;
   summonKeyboard();
 }, { passive: true });
-// iOS only grants motion (parallax) access inside a first real gesture
+// iOS only grants motion (parallax) access inside a real gesture — this asks
+// at most once ever; afterwards it resolves from the stored answer in silence
 document.addEventListener('touchend', () => enableMotion(), { once: true, passive: true });
 
 // the keyboard shrinking the viewport re-centers the current line
@@ -387,7 +388,20 @@ async function currentPushSub() {
   return reg.pushManager.getSubscription();
 }
 
+const motionBtn = $('btn-motion');
+
+function refreshMotionState() {
+  motionBtn.classList.toggle('on', motionState() === 'granted');
+}
+
+motionBtn.addEventListener('click', async () => {
+  const res = await toggleMotion();
+  refreshMotionState();
+  noteRemind(res === 'granted' ? 'the sky follows your phone' : 'the sky holds still');
+});
+
 async function refreshRemindState() {
+  refreshMotionState();
   remindBtn.classList.toggle('on', !!(await currentPushSub().catch(() => null)));
 }
 

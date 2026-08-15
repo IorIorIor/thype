@@ -29,8 +29,11 @@ let px = 0, py = 0;      // smoothed offset
 let gyroSeen = false;
 let baseBeta = null, baseGamma = null;
 
+const MOTION_KEY = 'thype-motion';   // 'granted' | 'denied' | absent (never asked)
+
 window.addEventListener('deviceorientation', (e) => {
   if (e.beta == null || e.gamma == null) return;
+  if (localStorage.getItem(MOTION_KEY) === 'denied') return;   // switched off
   gyroSeen = true;
   if (baseBeta === null) { baseBeta = e.beta; baseGamma = e.gamma; }
   baseBeta += (e.beta - baseBeta) * 0.002;     // drift toward the new resting
@@ -46,17 +49,42 @@ window.addEventListener('mousemove', (e) => {
   pty = (e.clientY / H - 0.5) * PAD * 0.45;
 });
 
-// iOS gates motion sensors behind a permission that must be requested
-// inside a user gesture; everywhere else this is a silent no-op.
-// never re-ask when tilt data is already flowing.
-export async function enableMotion() {
-  if (gyroSeen) return;
+const needsMotionPermission = () =>
+  typeof DeviceOrientationEvent !== 'undefined' &&
+  typeof DeviceOrientationEvent.requestPermission === 'function';
+
+export const motionState = () => localStorage.getItem(MOTION_KEY);
+
+// iOS gates motion sensors behind a permission requested inside a user
+// gesture, and home-screen web apps don't keep that grant between launches —
+// so asking automatically means asking every single startup. We ask at most
+// once, ever; after that only an explicit tap in settings may ask again.
+export async function enableMotion({ explicit = false } = {}) {
+  if (!needsMotionPermission()) {          // android/desktop: events just flow
+    localStorage.setItem(MOTION_KEY, 'granted');
+    return 'granted';
+  }
+  const stored = localStorage.getItem(MOTION_KEY);
+  if (gyroSeen && !explicit) return 'granted';
+  if (stored && !explicit) return stored;  // already answered — never nag again
   try {
-    if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
-      const res = await DeviceOrientationEvent.requestPermission();
-      if (res === 'granted') localStorage.setItem('thype-motion', '1');
-    }
-  } catch { /* declined — the sky stays still */ }
+    const res = await DeviceOrientationEvent.requestPermission();
+    localStorage.setItem(MOTION_KEY, res === 'granted' ? 'granted' : 'denied');
+    return res;
+  } catch {
+    return stored || 'denied';
+  }
+}
+
+// settings toggle: turn the tilting sky on (asking if needed) or off
+export async function toggleMotion() {
+  if (localStorage.getItem(MOTION_KEY) === 'granted' || gyroSeen) {
+    localStorage.setItem(MOTION_KEY, 'denied');
+    gyroSeen = false;
+    ptx = pty = 0;                         // let the sky settle back to centre
+    return 'denied';
+  }
+  return enableMotion({ explicit: true });
 }
 
 // the sky glows a touch brighter while thoughts are being typed
